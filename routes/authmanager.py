@@ -28,7 +28,10 @@ class AuthManager():
     
     def authenticate(self, userInput : str, userIP : str):
         if str(userInput) == str(self.OTP): # if correct OTP
-            response = make_response(render_template('config.html'))
+            # response = make_response(render_template('index.html'))
+            response = make_response()
+            response.headers["HX-Redirect"] = "/"
+            # return jsonify(success=True), 201, {"HX-Redirect": "/"}
             response.set_cookie('Authorization', self.generate_auth(userIP)) # generate authorization cookie based on user's IP and return it
             return response
         else:

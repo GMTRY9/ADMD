@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADMD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <div class="mode-buttons">
+    <button onclick="setMode('view')">View</button>
+    <button onclick="setMode('edit')">Edit</button>
+    <button onclick="setMode('create')">Create</button>
+    <button onclick="setMode('delete')">Delete</button>
+  </div>
+
+  <div class="carousel-container" id="carouselContainer">
+    <div class="carousel-track" id="carouselTrack"></div>
+    <div class="nav-buttons">
+      <button id="prevBtn">⟵ Prev</button>
+      <button id="nextBtn">Next ⟶</button>
+    </div>
+  </div>
+
+  <script>
+    let mode = 'view';
+    let currentIndex = 0;
+    let drinkConfigs = {};
+    let originalDrinkConfigs = {};
+    let originalProportions = {};
+    let pouring = false;
+    let pourAnimationFrame = null;
+    const FLOW_RATE = 5; // mL/sec
+
+    async function fetchConfigs() {
+      try {
+        const response = await fetch("/api/getconfigs");
+        if (!response.ok) throw new Error("Network error");
+        const data = await response.json();
+        drinkConfigs = data;
+      } catch (e) {
+        console.error("Fetch error:", e);
+      }
+    }
+
+    async function initApp() {
+      await fetchConfigs();
+      if (Object.keys(drinkConfigs).length > 0) {
+        renderSlides();
+        updateSlidePosition();
+      } else {
+        console.warn("No configurations found to display.");
+      }
+    }
+
+    function generateNewId() {
+      const keys = Object.keys(drinkConfigs).map(Number);
+      const nextId = keys.length ? Math.max(...keys) + 1 : 1;
+      return nextId.toString();
+    }
+
+    function renderSlides() {
+      const keys = Object.keys(drinkConfigs);
+      const carouselTrack = document.getElementById("carouselTrack");
+      carouselTrack.innerHTML = '';
+
+      keys.forEach((key, index) => {
+        const drink = drinkConfigs[key];
+        const slide = document.createElement("div");
+        slide.className = "carousel-slide";
+
+        const title = document.createElement("div");
+        title.className = "drink-name";
+
+        if (mode === 'edit' || mode === 'create') {
+          const nameInput = document.createElement("input");
+          nameInput.value = drink.name;
+          nameInput.className = "drink-name-input";
+          nameInput.addEventListener("input", (e) => {
+            drink.name = e.target.value;
+          });
+          title.appendChild(nameInput);
+        } else {
+          title.textContent = drink.name;
+        }
+
+        slide.appendChild(title);
+
+        const container = document.createElement("div");
+        container.className = "cartridge-container";
+
+        for (let j = 1; j <= 4; j++) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "cartridge-wrapper";
+
+          const cartridge = document.createElement("div");
+          cartridge.className = "cartridge";
+
+          const fill = document.createElement("div");
+          fill.className = "fill";
+
+          const ml = drink.proportions[j.toString()] || 0;
+          const percent = (ml / drink.default_size) * 100;
+          fill.style.height = percent + "%";
+
+          cartridge.appendChild(fill);
+          wrapper.appendChild(cartridge);
+
+          const label = document.createElement("div");
+          label.className = "cartridge-label";
+          label.textContent = "Cartridge " + j;
+          wrapper.appendChild(label);
+
+          if (mode === 'edit' || mode === 'create') {
+            const input = document.createElement("input");
+            input.type = "number";
+            input.value = ml;
+            input.className = "ml-input";
+            input.addEventListener("input", (e) => {
+              const newML = parseFloat(e.target.value) || 0;
+              drink.proportions[j.toString()] = newML;
+              fill.style.height = (newML / drink.default_size) * 100 + "%";
+            });
+            wrapper.appendChild(input);
+          } else {
+            const mlLabel = document.createElement("div");
+            mlLabel.className = "ml-label";
+            mlLabel.textContent = ml + " mL";
+            wrapper.appendChild(mlLabel);
+          }
+
+          container.appendChild(wrapper);
+        }
+
+        slide.appendChild(container);
+
+        const actions = document.createElement("div");
+        actions.className = "slide-actions";
+
+        if (mode === 'edit' || mode === 'create') {
+          const saveBtn = document.createElement("button");
+          saveBtn.textContent = "Save";
+          saveBtn.onclick = () => {
+            if (mode === 'create') {
+              const newId = generateNewId();
+              drinkConfigs[newId] = drink;
+            }
+            mode = 'view';
+            renderSlides();
+            updateSlidePosition();
+          };
+          actions.appendChild(saveBtn);
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.textContent = "Cancel";
+          cancelBtn.onclick = () => {
+            const originalConfig = originalDrinkConfigs[key];
+            if (originalConfig) {
+              drinkConfigs[key] = { ...originalConfig };
+            }
+            mode = 'view';
+            renderSlides();
+            updateSlidePosition();
+          };
+          actions.appendChild(cancelBtn);
+        }
+
+        if (mode === 'delete') {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.textContent = "Delete";
+          deleteBtn.onclick = () => {
+            delete drinkConfigs[key];
+            const newKeys = Object.keys(drinkConfigs);
+            currentIndex = Math.min(currentIndex, newKeys.length - 1);
+            renderSlides();
+            updateSlidePosition();
+          };
+          actions.appendChild(deleteBtn);
+        }
+
+        if (mode === 'view') {
+          const startBtn = document.createElement("button");
+          startBtn.textContent = "Start";
+          startBtn.onclick = () => startPouring(drink);
+
+          const stopBtn = document.createElement("button");
+          stopBtn.textContent = "Stop";
+          stopBtn.onclick = () => stopPouring();
+
+          actions.appendChild(startBtn);
+          actions.appendChild(stopBtn);
+        }
+
+        slide.appendChild(actions);
+        carouselTrack.appendChild(slide);
+      });
+    }
+
+    function updateSlidePosition() {
+      const offset = -currentIndex * 100;
+      document.getElementById("carouselTrack").style.transform = `translateX(${offset}%)`;
+    }
+
+    function setMode(newMode) {
+      mode = newMode;
+
+      if (mode === 'create') {
+        const newId = generateNewId();
+        drinkConfigs[newId] = {
+          default_size: 70,
+          name: "New Drink",
+          proportions: { "1": 0, "2": 0, "3": 0, "4": 0 }
+        };
+        currentIndex = Object.keys(drinkConfigs).length - 1;
+      }
+
+      if (mode === 'edit') {
+        originalDrinkConfigs = JSON.parse(JSON.stringify(drinkConfigs));
+      }
+
+      renderSlides();
+      updateSlidePosition();
+    }
+
+    function startPouring(drink) {
+      if (pouring) return;
+
+      const slide = document.getElementsByClassName("carousel-slide")[currentIndex];
+      const fills = slide.querySelectorAll(".fill");
+
+      originalProportions = { ...drink.proportions };
+      pouring = true;
+      const startTime = performance.now();
+
+      function animatePouring(timestamp) {
+        const elapsed = (timestamp - startTime) / 1000;
+        let allEmpty = true;
+
+        fills.forEach((fill, index) => {
+          const cartNum = (index + 1).toString();
+          const originalML = originalProportions[cartNum] || 0;
+          const remainingML = Math.max(originalML - FLOW_RATE * elapsed, 0);
+          const percent = (remainingML / drink.default_size) * 100;
+          fill.style.height = percent + "%";
+          if (remainingML > 0) allEmpty = false;
+        });
+
+        if (allEmpty) {
+          pouring = false;
+          alert("Pouring complete.");
+          resetBars(drink);
+          return;
+        }
+
+        pourAnimationFrame = requestAnimationFrame(animatePouring);
+      }
+
+      pourAnimationFrame = requestAnimationFrame(animatePouring);
+    }
+
+    function stopPouring() {
+      if (!pouring) return;
+      cancelAnimationFrame(pourAnimationFrame);
+      pouring = false;
+
+      const drink = Object.values(drinkConfigs)[currentIndex];
+      resetBars(drink);
+      alert("Pouring stopped and reset.");
+    }
+
+    function resetBars(drink) {
+      const slide = document.getElementsByClassName("carousel-slide")[currentIndex];
+      const fills = slide.querySelectorAll(".fill");
+
+      fills.forEach((fill, index) => {
+        const cartNum = (index + 1).toString();
+        const ml = drink.proportions[cartNum] || 0;
+        const percent = (ml / drink.default_size) * 100;
+        fill.style.height = percent + "%";
+      });
+    }
+
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      const keys = Object.keys(drinkConfigs);
+      currentIndex = (currentIndex + 1) % keys.length;
+      updateSlidePosition();
+    });
+
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      const keys = Object.keys(drinkConfigs);
+      currentIndex = (currentIndex - 1 + keys.length) % keys.length;
+      updateSlidePosition();
+    });
+
+    // Touch/swipe navigation
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const carouselContainer = document.getElementById("carouselContainer");
+
+    carouselContainer.addEventListener("touchstart", e => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+
+    carouselContainer.addEventListener("touchend", e => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    });
+
+    function handleSwipe() {
+      const threshold = 30;
+      const keys = Object.keys(drinkConfigs);
+      if (touchEndX < touchStartX - threshold) {
+        currentIndex = (currentIndex + 1) % keys.length;
+      } else if (touchEndX > touchStartX + threshold) {
+        currentIndex = (currentIndex - 1 + keys.length) % keys.length;
+      }
+      updateSlidePosition();
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
