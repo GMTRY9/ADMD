@@ -1,0 +1,20 @@
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> 
+    <script src="https://unpkg.com/htmx.org@1.9.6" integrity="sha384-FhXw7b6AlE/jyjlZH5iHa/tTe9EpJ1Y55RjcgPbjeWMskSxZt1v9qkxLJWNJaGni" crossorigin="anonymous"></script>
+</head>
+<body>
+    <a href="/config">Edit</a>
+    <a href="/configcreate">Create</a>
+    <a href="/configremove">Remove</a>
+    <!-- form which posts new config data to API, expecting a redirect header from back-end -->
+    <form hx-post="/api/configcreate" hx-redirect="true" id="form">
+        <p>Enter Config Name to Create:</p>
+        <p>
+            <!-- users choice of new config name -->
+            <input id="newconfig" type ="text" name ="configName">
+        </p>
+        <p><input type ="submit" value ="submit"></p>
+    </form>
+</body>
+</html>

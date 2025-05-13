@@ -1,0 +1,223 @@
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- link stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> 
+    <!-- load htmx resources -->
+    <script src="https://unpkg.com/htmx.org@1.9.6" integrity="sha384-FhXw7b6AlE/jyjlZH5iHa/tTe9EpJ1Y55RjcgPbjeWMskSxZt1v9qkxLJWNJaGni" crossorigin="anonymous"></script>
+</head>
+<body>
+	<script type="text/javascript" charset="utf-8">
+        // create global scope variable configs
+        var configs;
+        var cartridges;
+        var totalVolume;
+        
+        fetchCartridges();
+        fetchConfigs();
+
+        console.log(cartridges)
+
+        function fetchConfigs() {
+            // begin get request to api to recieve configuration data
+            fetch("/api/getconfigs")
+                .then(response => {
+                    if (!response.ok) {
+                        // handle timeouts
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // process the data received from the API
+                    console.log(data);
+                    configs = data;
+                    // create config HTML select with new configuration data
+                    createConfigSelection()
+                })
+                .catch(error => {
+                    // handle any errors that occurred during the request
+                    console.error('Error occured in fetch', error);
+                });
+        }
+
+        function fetchCartridges() {
+            // begin get request to api to recieve configuration data
+            fetch("/api/getcartridges")
+                .then(response => {
+                    if (!response.ok) {
+                        // handle timeouts
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // process the data received from the API
+                    console.log(data);
+                    cartridges = data
+                })
+                .catch(error => {
+                    // handle any errors that occurred during the request
+                    console.error('Error occured in fetch', error);
+                });
+        }
+
+        function updateCurrentConfig(configname) {
+            // send post request to API containing config name JSON
+            fetch("/api/updatecurrentconfig", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({"ConfigName":configname}) // Convert the data to JSON format
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // handle timeouts
+                    throw new Error('Network response was not ok');
+                }
+                return response.json(); // parse  JSON response
+            })
+            .catch(error => {
+                // handle errors that occurred during the request
+                console.error('There was a problem with the fetch operation:', error);
+            });
+        }
+
+        function createConfigSelection() {
+            console.log(configs)
+            // Add config options to configSelect <select> element
+            var configSelect = document.getElementById("configSelect");
+
+            for (const configName in configs) {
+                var option = document.createElement("option");
+                option.value = configName;
+                option.text = configName + " - " + configs[configName]["name"];
+                configSelect.add(option);
+            }
+        }
+
+        function getTotalVolume() {
+            return document.getElementById("totalVolume").value;
+        }
+
+        function configChange() {
+            // get current config selected by user 
+            let configSelect = document.getElementById("configSelect");
+            let value = configSelect.value;
+
+            // change only if user selects config, not the default '...' option
+            if (value in configs) {
+                currentConfig = configs[value];
+                console.log(currentConfig)
+                updateCurrentConfig(value);
+
+                // load current values to grid size input boxes 
+                document.getElementById("name").value = currentConfig.name;
+                document.getElementById("totalVolume").value = currentConfig.default_size;
+
+                updateProportionFields();
+
+            }
+        }
+
+        function calculateNewTotal() {
+            console.log("detected change");
+            let new_total = 0;
+            let proportionContainer = document.getElementById("proportionConfigContainer");
+            let inputs = proportionContainer.getElementsByTagName("input");
+            for (let i = 1; i < inputs.length; i = i + 2) {
+                let value = inputs[i].value;
+                console.log(value)
+                new_total += parseInt(value);
+            };
+            document.getElementById("totalVolume").value = new_total;
+        }
+
+        function updateProportionFields() {
+            let proportionConfigContainer = document.getElementById('proportionConfigContainer');
+            // clear button keybind assign form div
+            proportionConfigContainer.replaceChildren()
+
+            proportionToVolumeArr = Object.entries(currentConfig.proportions)
+            
+
+            console.log(proportionToVolumeArr)
+
+            // if (inputType == "Volume in ML") {
+            //     var denominator = 0.0;
+                
+            //     for (let i = 0; i < proportionToVolumeArr.length; i++) {
+            //         denominator += proportionToVolumeArr[i][1]
+            //     }
+
+            var totalVolume = getTotalVolume();
+
+            // }
+
+            for (let row = 1; row <= cartridges; row++) {
+                console.log("creating input fields");
+                // begin on a new paragraph therefore line
+                const para = document.createElement("p");
+                
+                // display editable box containing the button number
+                const proportionInputField = document.createElement("input");
+                proportionInputField.name = "proportionsInput" + row.toString();
+                proportionInputField.type = "text";
+                if (row - 1 < proportionToVolumeArr.length) {
+                    proportionInputField.value = proportionToVolumeArr[row-1][0];
+                }
+
+                const volumeInputField = document.createElement("input");
+                volumeInputField.name = "volumeInput" + row.toString();
+                volumeInputField.type = "number";
+                volumeInputField.step = "any";
+                volumeInputField.onchange = calculateNewTotal;
+                volumeInputField.onkeypress = calculateNewTotal;
+                volumeInputField.oninput = calculateNewTotal;
+                volumeInputField.onpaste = calculateNewTotal;
+                volumeInputField.value = proportionToVolumeArr[row-1][1]
+
+                para.appendChild(proportionInputField);
+                para.appendChild(volumeInputField);
+
+                // append to div
+                proportionConfigContainer.appendChild(para);
+
+            }
+        }
+    
+
+    </script>
+    <!-- hyperlinks to other pages -->
+    <a href="/config">Edit</a>
+    <a href="/configcreate">Create</a>
+    <a href="/configremove">Remove</a>
+
+    <!-- form which posts config data to API -->
+    <form hx-post="/api/editconfig" id="form">
+        <p>Choose Config to Use/Edit:</p>
+        <!-- upon selecting a config to edit, the current selected config is updated back-end -->
+        <select name="configSelect" id="configSelect" onchange="configChange()">
+        <!-- default option ""..."" -->
+        <option>...</option>
+        </select>
+        <p>Name:</p>
+        <p>
+            <!-- number input only text boxes for gridsizes -->
+            <input id="name" type ="text" name ="name">
+        </p>
+        <p>Total Volume in ML:</p>
+        <p>
+            <!-- number input only text boxes for gridsizes -->
+            <input id="totalVolume" type ="number" name ="totalVolume" step="any">
+        </p>
+        <p>Enter volumes for each cartridge:</p>
+        <!-- div to contain a box for button number and corresponding keybind to edit -->
+        <!-- <select name="inputTypeSelect" id="inputTypeSelect" onchange="inputTypeChange()">
+            <option>Parts/Ratio</option>
+            <option>Volume in ML</option>
+        </select> -->
+        <div class="proportionConfigContainer" id="proportionConfigContainer"></div>
+        <p><input type ="submit" value ="submit"></p>
+    </form>
+</body>
+</html>
