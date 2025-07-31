@@ -1,3 +1,5 @@
+html, body {margin: 0; height: 100%; overflow: hidden}
+
 h1 {
     font-size: 1.8rem;
     color: #2d2d2d;
@@ -224,4 +226,38 @@ body {
     .drink-name { font-size: 24px; }
     .cartridge-label, .ml-label, .ml-input { font-size: 14px; }
     .nav-buttons button { font-size: 16px; }
+}
+
+.otp-container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    z-index: 999;
+}
+
+#refreshOtpBtn {
+    padding: 6px 12px;
+    font-size: 14px;
+    background-color: #60bfdb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#refreshOtpBtn:hover {
+    background-color: #3f51b5;
+}
+
+.otp-label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #2d2d2d;
 }

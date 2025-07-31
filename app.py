@@ -9,4 +9,6 @@ with app.app_context(): # allow access to app configuration data throughout rest
     from routes import * # import from routes, beginning with initialiser file
 
 app.register_blueprint(routes) # append all routes to flask blueprint 
-app.run(debug=True)
+
+if __name__ == "__main__":
+    app.run(debug=True)

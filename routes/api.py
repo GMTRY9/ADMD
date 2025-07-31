@@ -6,7 +6,7 @@ from .authmanager import AuthManager
 
 from . import AuthSession, routes # import constants from initialiser file
 
-drinkmachine = DrinkMachine(AuthSession.OTP)
+drinkmachine = DrinkMachine()
 
 @routes.route('/api/authenticate', methods=['GET'])
 def authDevice():
@@ -17,79 +17,52 @@ def authDevice():
 @routes.route('/api/editconfig', methods=['POST'])
 @AuthSession.auth_required
 def editConfig():
-   if request.method == 'POST':
-      if request.form['configSelect'] == "...": # ... is the default option for the select
-         return jsonify(error="Must select config"), 400
-      
-      if None in (request.form['name'], request.form['totalVolume']):
+   if request.method == 'POST': 
+      new_config = request.get_json()
+      if not new_config['name']:
          return jsonify(error="Field values should be populated"), 400
       
-      config = UserConfigurationLoader(drinkmachine.get_selected_config_name()).load() # load current user config to be edited
+      old_config = UserConfigurationLoader(drinkmachine.get_selected_config_name()).load() # load current user config to be edited
 
       # edit config's button's keybinds to new entered keybinds
       system_cartridges = SystemConfigurationLoader().load().get_cartridges()
 
-      ratios = (len(request.form) - 4) // 2
-
-      # if request.form['inputTypeSelect'] == "Volume in ML":
-      #    calculateRatio = True
-      #    denominator = 0
-      #    for mixerNumber in range(1, ratios + 1):
-      #       value = request.form[f"volumeInput{mixerNumber}"]
-      #       if value:
-      #          denominator += float(request.form[f"volumeInput{mixerNumber}"])
-      # else:
-      #    calculateRatio = False
-
-      for mixerNumber in range(1, ratios + 1):
-         if mixerNumber > system_cartridges or mixerNumber < 1:
-            return jsonify(error="Cartridge number does not exist"), 400
-         
-         proportion = request.form[f"volumeInput{mixerNumber}"]
+      for cartridge in range(1, system_cartridges+1):     
+         proportion = new_config["proportions"][str(cartridge)]
 
          if not proportion:
             continue
 
-        # if not (proportion or) 
-         
          value = float(proportion)
 
          if value <= 0:
             return jsonify(error="Volume must be greater than 0"), 400
          
-         config.set_proportion(str(mixerNumber), value)
+         old_config.set_proportion(str(cartridge), value)
 
-      # get grid sizes
-      name = request.form['name']
+      name = new_config['name']
 
       # ensure inputs are digits
       if len(name) < 1:
          return jsonify(error="Must enter a drink name"), 400
-      elif name in UserConfigurationManager.list_configs() and name != drinkmachine.get_selected_config_name():
+      elif name in UserConfigurationManager.list_configs() and name != old_config.get_name():
          return jsonify(error="Config name already exists"), 400
       
-      config.set_name(name)
-
-      size = int(request.form['totalVolume'])
-
-      if size <= 0:
-         return jsonify(error="Total volume cannot be 0"), 400
-      
-      config.set_default_size(size)
+      old_config.set_name(name)
 
       # overwrite edited config
-      UserConfigurationSaver(config).save(drinkmachine.get_selected_config_name())
+      UserConfigurationSaver(old_config).save(new_config["configNo"])
 
-      return jsonify(success=True), 201, {"HX-Redirect": "/"}
+      return jsonify(success=True), 201
 
 @routes.route("/api/configcreate", methods=['POST'])
 @AuthSession.auth_required
 def configCreate():
    if request.method == "POST":
-      newconfig = request.form
+      newconfig = request.get_json()
 
       # get configname and gridsizes from form data
-      configname = newconfig.get("configName")
+      configname = newconfig["name"]
 
       # if any values are empty
       if not configname:
@@ -111,7 +84,7 @@ def configCreate():
 @AuthSession.auth_required
 def configRemove():
    if request.method == "POST":
-      configname = request.json["ConfigName"] # take request as JSON
+      configname = request.json["name"] # take request as JSON
       if UserConfigurationManager(configname).remove():
          return jsonify(success=True), 200
       else:
@@ -134,6 +107,11 @@ def setCurrentUserConfig():
       drinkmachine.set_selected_config_name(request.json["ConfigName"]) 
       return jsonify(success=True), 200
    return jsonify(error="Config does not exist"), 400
+
+@routes.route('/api/otp', methods=['GET'])
+@AuthSession.auth_required
+def getOTP():
+   return jsonify({"otp":AuthSession.OTP})
 
 @routes.route('/api/getcartridges', methods=['GET'])
 @AuthSession.auth_required

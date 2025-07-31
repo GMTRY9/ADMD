@@ -5,8 +5,13 @@
   <title>ADMD</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/htmx.org@1.9.6" integrity="sha384-FhXw7b6AlE/jyjlZH5iHa/tTe9EpJ1Y55RjcgPbjeWMskSxZt1v9qkxLJWNJaGni" crossorigin="anonymous"></script>
 </head>
 <body>
+  <div class="otp-container">
+    <button id="refreshOtpBtn">OTP</button>
+    <span id="otpDisplay" class="otp-label">Loading...</span>
+  </div>
 
   <div class="mode-buttons">
     <button onclick="setMode('view')">View</button>
@@ -15,13 +20,15 @@
     <button onclick="setMode('delete')">Delete</button>
   </div>
 
-  <div class="carousel-container" id="carouselContainer">
-    <div class="carousel-track" id="carouselTrack"></div>
-    <div class="nav-buttons">
-      <button id="prevBtn">⟵ Prev</button>
-      <button id="nextBtn">Next ⟶</button>
+  <form id="carousel-form">
+    <div class="carousel-container" id="carouselContainer">
+      <div class="carousel-track" id="carouselTrack"></div>
+      <div class="nav-buttons">
+        <button type="button" id="prevBtn">⟵ Prev</button>
+        <button type="button" id="nextBtn">Next ⟶</button>
+      </div>
     </div>
-  </div>
+  </form>
 
   <script>
     let mode = 'view';
@@ -31,6 +38,7 @@
     let originalProportions = {};
     let pouring = false;
     let pourAnimationFrame = null;
+    const DEFAULT_SIZE = 200;
     const FLOW_RATE = 5; // mL/sec
 
     async function fetchConfigs() {
@@ -51,6 +59,18 @@
         updateSlidePosition();
       } else {
         console.warn("No configurations found to display.");
+      }
+    }
+
+    async function fetchOtp() {
+      try {
+        const response = await fetch("/api/otp");
+        if (!response.ok) throw new Error("Failed to fetch OTP");
+        const data = await response.json();
+        document.getElementById("otpDisplay").textContent = data.otp || "N/A";
+      } catch (err) {
+        console.error("OTP fetch failed:", err);
+        document.getElementById("otpDisplay").textContent = "Error";
       }
     }
 
@@ -76,6 +96,7 @@
         if (mode === 'edit' || mode === 'create') {
           const nameInput = document.createElement("input");
           nameInput.value = drink.name;
+          nameInput.type = "text";
           nameInput.className = "drink-name-input";
           nameInput.addEventListener("input", (e) => {
             drink.name = e.target.value;
@@ -101,7 +122,7 @@
           fill.className = "fill";
 
           const ml = drink.proportions[j.toString()] || 0;
-          const percent = (ml / drink.default_size) * 100;
+          const percent = (ml / DEFAULT_SIZE) * 100;
           fill.style.height = percent + "%";
 
           cartridge.appendChild(fill);
@@ -120,7 +141,7 @@
             input.addEventListener("input", (e) => {
               const newML = parseFloat(e.target.value) || 0;
               drink.proportions[j.toString()] = newML;
-              fill.style.height = (newML / drink.default_size) * 100 + "%";
+              fill.style.height = (newML / DEFAULT_SIZE) * 100 + "%";
             });
             wrapper.appendChild(input);
           } else {
@@ -141,19 +162,42 @@
         if (mode === 'edit' || mode === 'create') {
           const saveBtn = document.createElement("button");
           saveBtn.textContent = "Save";
-          saveBtn.onclick = () => {
-            if (mode === 'create') {
-              const newId = generateNewId();
-              drinkConfigs[newId] = drink;
+          saveBtn.type = "submit";
+          saveBtn.onclick = (e) => {
+            e.preventDefault();
+            const configToSave = drinkConfigs[key];
+            configToSave.configNo = key;
+            if (mode === 'edit') {
+              fetch("/api/editconfig", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(configToSave)
+              }).then(_ => {
+                mode = 'view';
+                renderSlides();
+                updateSlidePosition();
+              });
+            } else if (mode === "create") {
+              fetch("/api/configcreate", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(configToSave)
+              }).then(_ => {
+                mode = 'view';
+                renderSlides();
+                updateSlidePosition();
+              })
             }
-            mode = 'view';
-            renderSlides();
-            updateSlidePosition();
           };
           actions.appendChild(saveBtn);
 
           const cancelBtn = document.createElement("button");
           cancelBtn.textContent = "Cancel";
+          saveBtn.type = "button";
           cancelBtn.onclick = () => {
             const originalConfig = originalDrinkConfigs[key];
             if (originalConfig) {
@@ -169,12 +213,21 @@
         if (mode === 'delete') {
           const deleteBtn = document.createElement("button");
           deleteBtn.textContent = "Delete";
+          deleteBtn.type = "button";
           deleteBtn.onclick = () => {
-            delete drinkConfigs[key];
-            const newKeys = Object.keys(drinkConfigs);
-            currentIndex = Math.min(currentIndex, newKeys.length - 1);
-            renderSlides();
-            updateSlidePosition();
+            fetch("/api/configremove", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({"name":key})
+              }).then(_ => {
+                delete drinkConfigs[key];
+                const newKeys = Object.keys(drinkConfigs);
+                currentIndex = Math.min(currentIndex, newKeys.length - 1);
+                renderSlides();
+                updateSlidePosition();
+              })
           };
           actions.appendChild(deleteBtn);
         }
@@ -182,10 +235,14 @@
         if (mode === 'view') {
           const startBtn = document.createElement("button");
           startBtn.textContent = "Start";
+          startBtn.type = "button";
+          startBtn.id = "startBtn";
           startBtn.onclick = () => startPouring(drink);
 
           const stopBtn = document.createElement("button");
           stopBtn.textContent = "Stop";
+          stopBtn.type = "button";
+          stopBtn.id = "stopBtn";
           stopBtn.onclick = () => stopPouring();
 
           actions.appendChild(startBtn);
@@ -208,7 +265,6 @@
       if (mode === 'create') {
         const newId = generateNewId();
         drinkConfigs[newId] = {
-          default_size: 70,
           name: "New Drink",
           proportions: { "1": 0, "2": 0, "3": 0, "4": 0 }
         };
@@ -241,8 +297,9 @@
           const cartNum = (index + 1).toString();
           const originalML = originalProportions[cartNum] || 0;
           const remainingML = Math.max(originalML - FLOW_RATE * elapsed, 0);
-          const percent = (remainingML / drink.default_size) * 100;
-          fill.style.height = percent + "%";
+          const percent = (remainingML / DEFAULT_SIZE) * 100;
+          // nabl fix
+          fill.style.height = percent - 1 + "%";
           if (remainingML > 0) allEmpty = false;
         });
 
@@ -276,7 +333,7 @@
       fills.forEach((fill, index) => {
         const cartNum = (index + 1).toString();
         const ml = drink.proportions[cartNum] || 0;
-        const percent = (ml / drink.default_size) * 100;
+        const percent = (ml / DEFAULT_SIZE) * 100;
         fill.style.height = percent + "%";
       });
     }
@@ -293,6 +350,8 @@
       updateSlidePosition();
     });
 
+    document.getElementById("refreshOtpBtn").addEventListener("click", fetchOtp);
+
     // Touch/swipe navigation
     let touchStartX = 0;
     let touchEndX = 0;
@@ -307,6 +366,28 @@
       handleSwipe();
     });
 
+    document.addEventListener("keydown", function(event) {
+      const ctrl = event.ctrlKey;
+      const alt = event.altKey;
+
+      if (ctrl && alt) {
+        switch (event.key) {
+          case "s": // Ctrl + Alt + S => Start
+            document.getElementById("startBtn").click();
+            break;
+          case "x": // Ctrl + Alt + X => Stop
+            document.getElementById("stopBtn").click();
+            break;
+          case "ArrowLeft": // Ctrl + Alt + ← => Prev
+            document.getElementById("prevBtn").click();
+            break;
+          case "ArrowRight": // Ctrl + Alt + → => Next
+            document.getElementById("nextBtn").click();
+            break;
+        }
+      }
+    });
+
     function handleSwipe() {
       const threshold = 30;
       const keys = Object.keys(drinkConfigs);
@@ -319,6 +400,7 @@
     }
 
     window.onload = initApp;
+    window.addEventListener("load", fetchOtp);
   </script>
 </body>
 </html>

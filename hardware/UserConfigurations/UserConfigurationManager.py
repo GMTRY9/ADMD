@@ -7,10 +7,10 @@ class UserConfigurationManager:
     def __init__(self, name : str):
         self.name = name
 
-    def create(self, filename, total_volume=100, proportions={}): # default parameters for default config for creation
+    def create(self, filename, proportions={"1":0,"2":0,"3":0,"4":0}): # default parameters for default config for creation
         print(filename)
         if self.name not in self.list_configs(): # if config name not in use
-            new_user_config = UserConfiguration(f"{self.name}", proportions, total_volume) # initialise UserConfiguration dataclass object with data
+            new_user_config = UserConfiguration(f"{self.name}", proportions) # initialise UserConfiguration dataclass object with data
             UserConfigurationSaver(new_user_config).save(filename) # save config
 
     def remove(self):

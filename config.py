@@ -10,7 +10,6 @@ class ProductionConfig(Config):
     
 class DevelopmentConfig(Config):
     ENV = "development"
-    DEVELOPMENT = True
     TESTING = True
     DEBUG = True
     SECRET_KEY = "test_environment_secret"

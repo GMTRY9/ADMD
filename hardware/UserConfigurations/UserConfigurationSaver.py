@@ -18,8 +18,7 @@ class UserConfigurationSaver:
         with open(f"./hardware/UserConfigurations/Data/{name}.json", "w") as out:
             json.dump((
                 {"name":self.userConfig.name} | 
-                {"proportions":self.userConfig.proportions} |
-                {"default_size":self.userConfig.default_size}
+                {"proportions":self.userConfig.proportions}
                 ), out, indent=4) # dump json with data from UserConfiguration object using join to combine dictionaries, indent for aesthetics.
         return
     

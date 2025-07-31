@@ -7,19 +7,27 @@ from random import randint
 
 class AuthManager():
     def __init__(self, SECRET : str):
-        self.OTP = "".join([str(randint(0, 9)) for _ in range(6)]) # make constant random 6 digit number for one time password
+        self.OTP : str
         self.SECRET = SECRET # store environment secret in class variable SECRET
+        self.devices = {}
+        self.regenerateOTP() # make constant random 6 digit number for one time password
+
+    def regenerateOTP(self):
+        self.OTP = "".join([str(randint(0, 9)) for _ in range(6)])
 
     # auth required decorator
     def auth_required(self, f):
         @wraps(f)
         def decorator(*args, **kws):
+            user_addr = request.remote_addr
+            if user_addr in ('127.0.0.1', '::1', 'localhost'):
+                return f(*args, **kws)
             if 'Authorization' not in request.cookies:
                 return self.userUnauthenticated() # if no authorization cookie present, user is definitely unauthorised
             data = request.cookies.get('Authorization')
             token = str.replace(str(data), 'Authorization=','')
             try:
-                if decode(token, self.SECRET, algorithms=['HS256']) != {request.remote_addr:self.OTP}:
+                if decode(token, self.SECRET, algorithms=['HS256']) != {user_addr:self.devices[user_addr]}:
                     return self.userUnauthenticated() # if the user's authorisation cookie does not decode to a dictionary containing their IP and the one-time-password, they are unauthorised
             except: # if not in JWT format, there is a chance an error will occur, in this case the user is definitely unauthorised
                 return self.userUnauthenticated()
@@ -29,6 +37,8 @@ class AuthManager():
     def authenticate(self, userInput : str, userIP : str):
         if str(userInput) == str(self.OTP): # if correct OTP
             # response = make_response(render_template('index.html'))
+            self.devices[request.remote_addr] = self.OTP
+            self.regenerateOTP()
             response = make_response()
             response.headers["HX-Redirect"] = "/"
             # return jsonify(success=True), 201, {"HX-Redirect": "/"}

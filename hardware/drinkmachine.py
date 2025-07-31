@@ -1,53 +1,57 @@
 from .UserConfigurations import *
 from .SystemConfigurations import *
 
+from gpiozero import Button, OutputDevice
+import pyautogui
+from threading import Timer
+
 class DrinkMachine():
-    def __init__(self, otp : str):
-        self.NUM_CARTRIDGES = SystemConfigurationLoader().load().get_cartridges()
-        
-        self.otp = otp
-        self.configs = UserConfigurationManager.list_configs()
-        self.last_config_no = len(self.configs)
-        self.selected_config = 0
+    def __init__(self):
+        self.system_config = SystemConfigurationLoader().load()
+        self.NUM_CARTRIDGES = self.system_config.get_cartridges()
+        self.FLOW_RATE = self.system_config.flow_rate_l_s
 
-    def increment_config_selection(self):
-        self.selected_config += 1
-        if self.selected_config > self.last_config_no - 1:
-            self.selected_config = 1
-        return self.selected_config
-    
-    def set_selected_config_index(self, config_id):
-        self.selected_config = config_id
+        self.start_button = Button(self.system_config.start_button_gpio)
+        self.start_button.when_pressed = lambda: pyautogui.hotkey('ctrl', 'alt', 's')
 
-    def set_selected_config_name(self, config_name):
-        self.selected_config = self.configs.index(config_name)
-    
-    def get_selected_size(self):
-        # get size entered by user
-        return
-    
-    def get_selected_config_index(self):
-        return self.selected_config
-    
-    def get_selected_config_name(self):
-        return self.configs[self.selected_config]
-    
-    def update_display(self, text : str):
-        return True
-    
-    def start(self):
-        config = UserConfigurationLoader(str(self.selected_config)).load()
-        proportions = config.get_all_proportions()
-        # size = self.get_selected_size()
-        size = int(config.get_default_size())
+        self.stop_button_gpio = Button(self.system_config.stop_button_gpio)
+        self.stop_button_gpio.when_pressed = lambda: pyautogui.hotkey('ctrl', 'alt', 'x')
 
-        final_proportion_values = {}
-        denominator = sum(int(v) for v in proportions.values())
+        self.next_button_gpio = Button(self.system_config.next_button_gpio)
+        self.next_button_gpio.when_pressed = lambda: pyautogui.hotkey('ctrl', 'alt', 'right')
 
-        for key, value in proportions.items():
-            final_proportion_values[key] = size * int(value) / denominator
+        self.prev_button_gpio = Button(self.system_config.prev_button_gpio)
+        self.prev_button_gpio.when_pressed = lambda: pyautogui.hotkey('ctrl', 'alt', 'left')
 
-        print(final_proportion_values)
+        self.relay_outputs = [
+            OutputDevice(self.system_config.pump1_gpio, active_high=True, initial_value=False),
+            OutputDevice(self.system_config.pump2_gpio, active_high=True, initial_value=False),
+            OutputDevice(self.system_config.pump3_gpio, active_high=True, initial_value=False),
+            OutputDevice(self.system_config.pump4_gpio, active_high=True, initial_value=False)
+        ]
 
+        self.active_timers = []
 
-    
+    def activate_relay(self, relay, duration):
+        relay.on()
+        timer = Timer(duration, relay.off)
+        timer.start()
+        self.active_timers.append(timer)
+
+    def start(self, config_index):
+        config = UserConfigurationLoader(str(config_index)).load()
+        self.stop() 
+        for cartridge_no, volume_ml in config.proportions.values():
+            volume_l = volume_ml / 1000
+            time_s = volume_l / self.FLOW_RATE
+            self.activate_relay(self.relay_outputs[cartridge_no-1], time_s)
+
+    def stop(self):
+        # Cancel all timers
+        for timer in self.active_timers:
+            timer.cancel()
+        self.active_timers.clear()
+
+        # Turn off all relays
+        for relay in self.relay_outputs:
+            relay.off()

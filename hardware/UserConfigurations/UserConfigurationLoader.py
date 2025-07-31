@@ -17,5 +17,4 @@ class UserConfigurationLoader:
     def _mapper(self, json) -> UserConfiguration:
         name = json["name"] # get configname data from json
         proportions = json["proportions"] # get grid size from json
-        default_size = json["default_size"]
-        return UserConfiguration(name, proportions, default_size) # initialise UserConfiguration dataclass with data
+        return UserConfiguration(name, proportions) # initialise UserConfiguration dataclass with data

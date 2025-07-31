@@ -5,10 +5,9 @@ class UserConfiguration:
     """Class for user configurations"""
     name : str
     proportions : dict
-    default_size : float
 
     def get_as_dict(self) -> dict:
-        return {"name":self.name} | {"proportions":self.proportions} | {"default_size":self.default_size} # join all config data into large dictionary
+        return {"name":self.name} | {"proportions":self.proportions} # join all config data into large dictionary
     
     def get_name(self) -> str:
         return str(self.name)
@@ -30,9 +29,3 @@ class UserConfiguration:
     
     def set_name(self, name : str):
         self.name = name
-
-    def set_default_size(self, default_size : float):
-        self.default_size = default_size
-    
-    def get_default_size(self):
-        return str(self.default_size)
