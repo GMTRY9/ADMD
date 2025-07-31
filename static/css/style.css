@@ -261,3 +261,10 @@ body {
     font-size: 14px;
     color: #2d2d2d;
 }
+
+#keyboard {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 999;
+  }

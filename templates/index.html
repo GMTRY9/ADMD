@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <script src="https://unpkg.com/htmx.org@1.9.6" integrity="sha384-FhXw7b6AlE/jyjlZH5iHa/tTe9EpJ1Y55RjcgPbjeWMskSxZt1v9qkxLJWNJaGni" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-keyboard@3/build/css/index.css" />
+  <script src="https://cdn.jsdelivr.net/npm/simple-keyboard@3/build/index.js"></script>
 </head>
 <body>
   <div class="otp-container">
@@ -29,7 +31,7 @@
       </div>
     </div>
   </form>
-
+  <div id="keyboard" class="simple-keyboard"></div>
   <script>
     let mode = 'view';
     let currentIndex = 0;
@@ -98,9 +100,8 @@
           nameInput.value = drink.name;
           nameInput.type = "text";
           nameInput.className = "drink-name-input";
-          nameInput.addEventListener("input", (e) => {
-            drink.name = e.target.value;
-          });
+          nameInput.addEventListener("focus", () => showKeyboard("full", nameInput));
+          nameInput.addEventListener("input", (e) => drink.name = e.target.value);
           title.appendChild(nameInput);
         } else {
           title.textContent = drink.name;
@@ -138,6 +139,7 @@
             input.type = "number";
             input.value = ml;
             input.className = "ml-input";
+            input.addEventListener("focus", () => showKeyboard("numbers", input));
             input.addEventListener("input", (e) => {
               const newML = parseFloat(e.target.value) || 0;
               drink.proportions[j.toString()] = newML;
@@ -203,10 +205,16 @@
             if (originalConfig) {
               drinkConfigs[key] = { ...originalConfig };
             }
+
+            // Hide keyboard and clear input reference
+            document.getElementById("keyboard").style.display = "none";
+            currentInput = null;
+
             mode = 'view';
             renderSlides();
             updateSlidePosition();
           };
+
           actions.appendChild(cancelBtn);
         }
 
@@ -237,13 +245,33 @@
           startBtn.textContent = "Start";
           startBtn.type = "button";
           startBtn.id = "startBtn";
-          startBtn.onclick = () => startPouring(drink);
+          startBtn.onclick = async () => {
+            try {
+              await fetch("/api/start", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({"configNo":key})
+              });
+              startPouring(drink);
+            } catch (err) {
+              console.error("Failed to start pouring:", err);
+            }
+          };
 
           const stopBtn = document.createElement("button");
           stopBtn.textContent = "Stop";
           stopBtn.type = "button";
           stopBtn.id = "stopBtn";
-          stopBtn.onclick = () => stopPouring();
+          stopBtn.onclick = async () => {
+            try {
+              await fetch("/api/stop", { method: "POST" });
+              stopPouring();
+            } catch (err) {
+              console.error("Failed to stop pouring:", err);
+            }
+          };
 
           actions.appendChild(startBtn);
           actions.appendChild(stopBtn);
@@ -373,15 +401,19 @@
       if (ctrl && alt) {
         switch (event.key) {
           case "s": // Ctrl + Alt + S => Start
+            console.log("start");
             document.getElementById("startBtn").click();
             break;
           case "x": // Ctrl + Alt + X => Stop
+          console.log("stop");
             document.getElementById("stopBtn").click();
             break;
           case "ArrowLeft": // Ctrl + Alt + ← => Prev
+            console.log("prev");
             document.getElementById("prevBtn").click();
             break;
           case "ArrowRight": // Ctrl + Alt + → => Next
+            console.log("next");
             document.getElementById("nextBtn").click();
             break;
         }
@@ -401,6 +433,66 @@
 
     window.onload = initApp;
     window.addEventListener("load", fetchOtp);
+
+    let keyboard = null;
+    let currentInput = null;
+
+    function showKeyboard(layout = "default", inputEl) {
+      currentInput = inputEl;
+
+      if (!keyboard) {
+        keyboard = new window.SimpleKeyboard.default({
+          onChange: input => currentInput.value = input,
+          layout: {
+            default: [
+              "q w e r t y u i o p",
+              "a s d f g h j k l",
+              "{shift} z x c v b n m {bksp}",
+              "{space}"
+            ],
+            shift: [
+              "Q W E R T Y U I O P",
+              "A S D F G H J K L",
+              "{shift} Z X C V B N M {bksp}",
+              "{space}"
+            ],
+            numbers: [
+              "1 2 3",
+              "4 5 6",
+              "7 8 9",
+              ". 0 {bksp}"
+            ]
+          },
+          display: {
+            "{bksp}": "⌫",
+            "{space}": "␣",
+            "{shift}": "⇧"
+          },
+          onKeyPress: button => {
+            if (button === "{shift}") handleShift();
+            if (button === "{bksp}") {
+              currentInput.value = currentInput.value.slice(0, -1);
+              keyboard.setInput(currentInput.value);
+            }
+          }
+        });
+      }
+
+      // Set correct layout when switching between inputs
+      const layoutName = layout === "numbers" ? "numbers" : "default";
+      keyboard.setOptions({ layoutName });
+      keyboard.setInput(currentInput.value || "");
+      document.getElementById("keyboard").style.display = "block";
+    }
+
+
+    function handleShift() {
+      const current = keyboard.options.layoutName;
+      if (current === "numbers") return; // don't shift numbers
+      const newLayout = current === "default" ? "shift" : "default";
+      keyboard.setOptions({ layoutName: newLayout });
+    }
+
   </script>
 </body>
 </html>

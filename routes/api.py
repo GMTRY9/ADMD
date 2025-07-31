@@ -113,6 +113,17 @@ def setCurrentUserConfig():
 def getOTP():
    return jsonify({"otp":AuthSession.OTP})
 
+@routes.route('/api/start', methods=['POST'])
+@AuthSession.auth_required
+def start():
+   configNo = request.json["configNo"]
+   drinkmachine.start(configNo)
+
+@routes.route('/api/stop', methods=['POST'])
+@AuthSession.auth_required
+def stop():
+   drinkmachine.stop()
+
 @routes.route('/api/getcartridges', methods=['GET'])
 @AuthSession.auth_required
 def getCartridges():

@@ -41,10 +41,11 @@ class DrinkMachine():
     def start(self, config_index):
         config = UserConfigurationLoader(str(config_index)).load()
         self.stop() 
-        for cartridge_no, volume_ml in config.proportions.values():
+        print(config.proportions)
+        for cartridge_no, volume_ml in config.proportions.items():
             volume_l = volume_ml / 1000
             time_s = volume_l / self.FLOW_RATE
-            self.activate_relay(self.relay_outputs[cartridge_no-1], time_s)
+            self.activate_relay(self.relay_outputs[int(cartridge_no)-1], time_s)
 
     def stop(self):
         # Cancel all timers
