@@ -118,11 +118,13 @@ def getOTP():
 def start():
    configNo = request.json["configNo"]
    drinkmachine.start(configNo)
+   return jsonify(success=True), 200
 
 @routes.route('/api/stop', methods=['POST'])
 @AuthSession.auth_required
 def stop():
    drinkmachine.stop()
+   return jsonify(success=True), 200
 
 @routes.route('/api/getcartridges', methods=['GET'])
 @AuthSession.auth_required

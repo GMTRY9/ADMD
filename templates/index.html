@@ -14,7 +14,12 @@
     <button id="refreshOtpBtn">OTP</button>
     <span id="otpDisplay" class="otp-label">Loading...</span>
   </div>
-
+  <div id="keyboardToggleContainer">
+    <label>
+      <input type="checkbox" id="keyboardToggle" checked>
+      Enable Keyboard
+    </label>
+  </div>  
   <div class="mode-buttons">
     <button onclick="setMode('view')">View</button>
     <button onclick="setMode('edit')">Edit</button>
@@ -420,6 +425,13 @@
       }
     });
 
+    document.addEventListener("keydown", (e) => {
+      if (e.altKey && e.key === "1") document.getElementById("startBtn").click();
+      if (e.altKey && e.key === "2") document.getElementById("stopBtn").click();
+      if (e.altKey && e.key === "q") document.getElementById("prevBtn").click();
+      if (e.altKey && e.key === "w") document.getElementById("nextBtn").click();
+    });
+
     function handleSwipe() {
       const threshold = 30;
       const keys = Object.keys(drinkConfigs);
@@ -437,7 +449,19 @@
     let keyboard = null;
     let currentInput = null;
 
+    let keyboardEnabled = true;
+
+    // Update when checkbox changes
+    document.getElementById("keyboardToggle").addEventListener("change", function () {
+      keyboardEnabled = this.checked;
+      if (!keyboardEnabled) {
+        hideKeyboard();
+      }
+    });
+
     function showKeyboard(layout = "default", inputEl) {
+      if (!keyboardEnabled) return;
+
       currentInput = inputEl;
 
       if (!keyboard) {
@@ -478,12 +502,32 @@
         });
       }
 
-      // Set correct layout when switching between inputs
       const layoutName = layout === "numbers" ? "numbers" : "default";
       keyboard.setOptions({ layoutName });
       keyboard.setInput(currentInput.value || "");
       document.getElementById("keyboard").style.display = "block";
+
+      // Ensure blur handler is only added once per input
+      inputEl.addEventListener("blur", handleBlur);
+      inputEl._hasKeyboardBlurHandler = true;
     }
+
+    function handleBlur(e) {
+      // Delay to allow time for the next input to gain focus
+      setTimeout(() => {
+        const active = document.activeElement;
+        // Only hide the keyboard if we're not focusing another relevant input
+        if (!active || (active.tagName !== 'INPUT' && active.contentEditable !== 'true')) {
+          hideKeyboard();
+        }
+      }, 100);
+    }
+
+    function hideKeyboard() {
+      document.getElementById("keyboard").style.display = "none";
+      currentInput = null;
+    }
+
 
 
     function handleShift() {
