@@ -46,7 +46,7 @@
     let pouring = false;
     let pourAnimationFrame = null;
     const DEFAULT_SIZE = 200;
-    const FLOW_RATE = 5; // mL/sec
+    var FLOW_RATE; // mL/sec
 
     async function fetchConfigs() {
       try {
@@ -59,8 +59,20 @@
       }
     }
 
+    async function fetchSystemConfig() {
+      try {
+        const response = await fetch("/api/getsystemconfig");
+        if (!response.ok) throw new Error("Network error");
+        const systemConfig = await response.json();
+        FLOW_RATE = systemConfig.flow_rate_l_s * 1000;
+      } catch (e) {
+        console.error("Fetch error:", e);
+      }
+    }
+
     async function initApp() {
       await fetchConfigs();
+      await fetchSystemConfig();
       if (Object.keys(drinkConfigs).length > 0) {
         renderSlides();
         updateSlidePosition();
@@ -139,27 +151,64 @@
           label.textContent = "Cartridge " + j;
           wrapper.appendChild(label);
 
+          let input = null;
           if (mode === 'edit' || mode === 'create') {
-            const input = document.createElement("input");
-            input.type = "number";
-            input.value = ml;
-            input.className = "ml-input";
-            input.addEventListener("focus", () => showKeyboard("numbers", input));
-            input.addEventListener("input", (e) => {
-              const newML = parseFloat(e.target.value) || 0;
-              drink.proportions[j.toString()] = newML;
-              fill.style.height = (newML / DEFAULT_SIZE) * 100 + "%";
-            });
-            wrapper.appendChild(input);
-          } else {
-            const mlLabel = document.createElement("div");
-            mlLabel.className = "ml-label";
-            mlLabel.textContent = ml + " mL";
-            wrapper.appendChild(mlLabel);
-          }
+              input = document.createElement("input");
+              input.type = "number";
+              input.value = ml;
+              input.className = "ml-input";
+              input.addEventListener("focus", () => showKeyboard("numbers", input));
+              input.addEventListener("input", (e) => {
+                  const newML = parseFloat(e.target.value) || 0;
+                  drink.proportions[j.toString()] = newML;
+                  fill.style.height = (newML / DEFAULT_SIZE) * 100 + "%";
+              });
+              wrapper.appendChild(input);
 
-          container.appendChild(wrapper);
-        }
+              // DRAG LOGIC stays here inside the loop
+              fill.style.cursor = 'ns-resize';
+              let startY, startHeight;
+
+              function onPointerDown(e) {
+                  e.preventDefault();
+                  startY = e.clientY || e.touches?.[0]?.clientY;
+                  startHeight = parseFloat(fill.style.height);
+
+                  document.addEventListener('mousemove', onPointerMove);
+                  document.addEventListener('mouseup', onPointerUp);
+                  document.addEventListener('touchmove', onPointerMove, { passive: false });
+                  document.addEventListener('touchend', onPointerUp);
+              }
+
+              function onPointerMove(e) {
+                  e.preventDefault();
+                  const currentY = e.clientY || e.touches?.[0]?.clientY;
+                  const deltaY = startY - currentY;
+                  let newPercent = Math.min(100, Math.max(0, startHeight + deltaY / 2));
+                  fill.style.height = newPercent + "%";
+                  const newML = Math.round((newPercent / 100) * DEFAULT_SIZE);
+                  drink.proportions[j.toString()] = newML;
+                  if (input) input.value = newML;
+              }
+
+              function onPointerUp() {
+                  document.removeEventListener('mousemove', onPointerMove);
+                  document.removeEventListener('mouseup', onPointerUp);
+                  document.removeEventListener('touchmove', onPointerMove);
+                  document.removeEventListener('touchend', onPointerUp);
+              }
+
+              fill.addEventListener('mousedown', onPointerDown);
+              fill.addEventListener('touchstart', onPointerDown, { passive: false });
+          } else {
+              const mlLabel = document.createElement("div");
+              mlLabel.className = "ml-label";
+              mlLabel.textContent = ml + " mL";
+              wrapper.appendChild(mlLabel);
+        } 
+        container.appendChild(wrapper);
+      }
+
 
         slide.appendChild(container);
 
@@ -513,15 +562,31 @@
     }
 
     function handleBlur(e) {
-      // Delay to allow time for the next input to gain focus
       setTimeout(() => {
-        const active = document.activeElement;
-        // Only hide the keyboard if we're not focusing another relevant input
-        if (!active || (active.tagName !== 'INPUT' && active.contentEditable !== 'true')) {
+        const keyboardEl = document.getElementById("keyboard");
+
+        // Get the element that was clicked/tapped
+        let lastClickTarget = window._lastClickTarget;
+
+        if (
+          !lastClickTarget ||
+          (!keyboardEl.contains(lastClickTarget) &&
+          lastClickTarget.tagName !== 'INPUT' &&
+          lastClickTarget.contentEditable !== 'true')
+        ) {
           hideKeyboard();
         }
       }, 100);
     }
+
+    // Track last clicked/tapped element globally
+    document.addEventListener("mousedown", e => {
+      window._lastClickTarget = e.target;
+    });
+    document.addEventListener("touchstart", e => {
+      window._lastClickTarget = e.target;
+    });
+
 
     function hideKeyboard() {
       document.getElementById("keyboard").style.display = "none";

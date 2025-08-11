@@ -4,7 +4,7 @@ from .SystemConfiguration import SystemConfiguration
 
 class SystemConfigurationLoader:
     def load(self) -> SystemConfiguration:
-        with open(f"./hardware/SystemConfigurations/system_config.json", 'r') as f:
+        with open(f"./system_config.json", 'r') as f:
             system_config_json = json.load(f) # load json from file
         return self._mapper(system_config_json) # use mapper method to convert to usable form
             

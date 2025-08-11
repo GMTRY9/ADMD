@@ -1,7 +1,6 @@
 from flask import render_template
 
 from . import routes, AuthSession # import routes object and authsession from initialiser file
-
 # append all front-end GET routes to routes object, with corresponding HTML template response, ensuring user is authenticated for necesarry pages
 
 @routes.route('/', methods=['GET'])

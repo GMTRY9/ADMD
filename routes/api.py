@@ -21,11 +21,11 @@ def editConfig():
       new_config = request.get_json()
       if not new_config['name']:
          return jsonify(error="Field values should be populated"), 400
-      
-      old_config = UserConfigurationLoader(drinkmachine.get_selected_config_name()).load() # load current user config to be edited
 
       # edit config's button's keybinds to new entered keybinds
       system_cartridges = SystemConfigurationLoader().load().get_cartridges()
+
+      old_config = UserConfigurationLoader(new_config["configNo"]).load()
 
       for cartridge in range(1, system_cartridges+1):     
          proportion = new_config["proportions"][str(cartridge)]
@@ -99,15 +99,6 @@ def getUserConfigs():
       configs[configName] = UserConfigurationLoader(configName).load_as_dict()
    return jsonify(configs), 200 # return all configs and their data to be handled front-end
 
-@routes.route('/api/updatecurrentconfig', methods=['POST'])
-@AuthSession.auth_required
-def setCurrentUserConfig():
-   configname = request.json["ConfigName"]
-   if configname in UserConfigurationManager.list_configs():
-      drinkmachine.set_selected_config_name(request.json["ConfigName"]) 
-      return jsonify(success=True), 200
-   return jsonify(error="Config does not exist"), 400
-
 @routes.route('/api/otp', methods=['GET'])
 @AuthSession.auth_required
 def getOTP():
@@ -126,8 +117,8 @@ def stop():
    drinkmachine.stop()
    return jsonify(success=True), 200
 
-@routes.route('/api/getcartridges', methods=['GET'])
+@routes.route('/api/getsystemconfig', methods=['GET'])
 @AuthSession.auth_required
 def getCartridges():
-   return jsonify(SystemConfigurationLoader().load().get_cartridges()), 200 # return all configs and their data to be handled front-end
+   return jsonify(SystemConfigurationLoader().load()), 200 # return all configs and their data to be handled front-end
 

@@ -10,6 +10,7 @@ class DrinkMachine():
         self.system_config = SystemConfigurationLoader().load()
         self.NUM_CARTRIDGES = self.system_config.get_cartridges()
         self.FLOW_RATE = self.system_config.flow_rate_l_s
+        self.isPouring = False
 
         self.start_button = Button(self.system_config.start_button_gpio, bounce_time=0.1)
         self.start_button.when_pressed = lambda: pyautogui.hotkey('alt', '1')
@@ -40,8 +41,13 @@ class DrinkMachine():
 
     def start(self, config_index):
         config = UserConfigurationLoader(str(config_index)).load()
-        self.stop() 
+    
         print(config.proportions)
+
+        if self.isPouring:
+            return
+        
+        self.isPouring = True
         for cartridge_no, volume_ml in config.proportions.items():
             volume_l = volume_ml / 1000
             time_s = volume_l / self.FLOW_RATE
@@ -52,6 +58,8 @@ class DrinkMachine():
         for timer in self.active_timers:
             timer.cancel()
         self.active_timers.clear()
+
+        self.isPouring = False
 
         # Turn off all relays
         for relay in self.relay_outputs:
