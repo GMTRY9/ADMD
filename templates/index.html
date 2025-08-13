@@ -15,11 +15,8 @@
     <span id="otpDisplay" class="otp-label">Loading...</span>
   </div>
   <div id="keyboardToggleContainer">
-    <label>
-      <input type="checkbox" id="keyboardToggle" checked>
-      Enable Keyboard
-    </label>
-  </div>  
+    <button id="keyboardToggle">Disable Keyboard</button>
+  </div>
   <div class="mode-buttons">
     <button onclick="setMode('view')">View</button>
     <button onclick="setMode('edit')">Edit</button>
@@ -287,6 +284,7 @@
                 delete drinkConfigs[key];
                 const newKeys = Object.keys(drinkConfigs);
                 currentIndex = Math.min(currentIndex, newKeys.length - 1);
+                mode = 'view';
                 renderSlides();
                 updateSlidePosition();
               })
@@ -387,7 +385,8 @@
 
         if (allEmpty) {
           pouring = false;
-          alert("Pouring complete.");
+          // pour complete
+          showGreenTick();
           resetBars(drink);
           return;
         }
@@ -397,6 +396,8 @@
 
       pourAnimationFrame = requestAnimationFrame(animatePouring);
     }
+
+    
 
     function stopPouring() {
       if (!pouring) return;
@@ -419,14 +420,65 @@
         fill.style.height = percent + "%";
       });
     }
+    
+    function showGreenTick(message = 'Done!') {
+      // Create popup container
+      const popup = document.createElement('div');
+      popup.className = 'tick-popup';
+      popup.setAttribute('role', 'status');
+      popup.setAttribute('aria-live', 'polite');
+
+      // Card with icon + text
+      popup.innerHTML = `
+        <div class="tick-card">
+          <svg class="tick-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="11" fill="rgba(255,255,255,0.18)"></circle>
+            <path d="M20 6L9 17l-5-5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>${message}</span>
+        </div>
+      `;
+
+      // Remove on click or after 3s
+      const remove = () => {
+        if (!popup.isConnected) return;
+        popup.addEventListener('animationend', () => popup.remove(), { once: true });
+        // If fadeOut animation was already scheduled via CSS, just ensure removal at end
+        popup.style.pointerEvents = 'none';
+      };
+
+      document.body.appendChild(popup);
+
+      // Auto-remove at 3s (matches CSS fade timing)
+      const t = setTimeout(() => remove(), 3000);
+
+      // Optional: allow dismiss on click or Esc
+      popup.addEventListener('click', () => {
+        clearTimeout(t);
+        remove();
+      });
+      document.addEventListener('keydown', function onKey(e) {
+        if (e.key === 'Escape') {
+          clearTimeout(t);
+          remove();
+          document.removeEventListener('keydown', onKey);
+        }
+      }, { once: true });
+    }
 
     document.getElementById("nextBtn").addEventListener("click", () => {
+      if (pouring) {
+        return
+      }
       const keys = Object.keys(drinkConfigs);
       currentIndex = (currentIndex + 1) % keys.length;
       updateSlidePosition();
     });
 
     document.getElementById("prevBtn").addEventListener("click", () => {
+      if (pouring) {
+        return
+      }
       const keys = Object.keys(drinkConfigs);
       currentIndex = (currentIndex - 1 + keys.length) % keys.length;
       updateSlidePosition();
@@ -482,6 +534,10 @@
     });
 
     function handleSwipe() {
+      if (pouring) {
+        return
+      }
+
       const threshold = 30;
       const keys = Object.keys(drinkConfigs);
       if (touchEndX < touchStartX - threshold) {
@@ -501,8 +557,13 @@
     let keyboardEnabled = true;
 
     // Update when checkbox changes
-    document.getElementById("keyboardToggle").addEventListener("change", function () {
-      keyboardEnabled = this.checked;
+    document.getElementById("keyboardToggle").addEventListener("click", function () {
+      keyboardEnabled = !keyboardEnabled;
+
+      // Update button label
+      this.textContent = keyboardEnabled ? "Disable Keyboard" : "Enable Keyboard";
+
+      // Hide keyboard if disabling
       if (!keyboardEnabled) {
         hideKeyboard();
       }

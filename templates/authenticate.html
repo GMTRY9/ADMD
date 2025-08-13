@@ -15,7 +15,7 @@
             <h1>Authenticate</h1>
             <p class="description">Please enter the One-Time Password from the drink machine to authenticate.</p>
             <!-- Authentication Form -->
-            <form hx-get="/api/authenticate" id="auth" class="auth-form">
+            <form hx-get="/api/authenticate" hx-trigger="submit" id="auth" class="auth-form">
                 <div class="input-group">
                     <label for="authcode">One-Time Password:</label>
                     <input id="authcode" type="number" name="authcode" placeholder="Enter OTP" required />

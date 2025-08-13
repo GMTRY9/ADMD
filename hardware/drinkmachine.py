@@ -12,23 +12,23 @@ class DrinkMachine():
         self.FLOW_RATE = self.system_config.flow_rate_l_s
         self.isPouring = False
 
-        self.start_button = Button(self.system_config.start_button_gpio, bounce_time=0.1)
-        self.start_button.when_pressed = lambda: pyautogui.hotkey('alt', '1')
+        # self.start_button = Button(self.system_config.start_button_gpio, bounce_time=0.1)
+        # self.start_button.when_pressed = lambda: pyautogui.hotkey('alt', '1')
 
-        self.stop_button_gpio = Button(self.system_config.stop_button_gpio, bounce_time=0.1)
-        self.stop_button_gpio.when_pressed = lambda: pyautogui.hotkey('alt', '2')
+        # self.stop_button_gpio = Button(self.system_config.stop_button_gpio, bounce_time=0.1)
+        # self.stop_button_gpio.when_pressed = lambda: pyautogui.hotkey('alt', '2')
 
-        self.next_button_gpio = Button(self.system_config.next_button_gpio, bounce_time=0.1)
-        self.next_button_gpio.when_pressed = lambda: pyautogui.hotkey('alt', 'w')
+        # self.next_button_gpio = Button(self.system_config.next_button_gpio, bounce_time=0.1)
+        # self.next_button_gpio.when_pressed = lambda: pyautogui.hotkey('alt', 'w')
 
-        self.prev_button_gpio = Button(self.system_config.prev_button_gpio, bounce_time=0.1)
-        self.prev_button_gpio.when_pressed = lambda: pyautogui.hotkey('alt', 'q')
+        # self.prev_button_gpio = Button(self.system_config.prev_button_gpio, bounce_time=0.1)
+        # self.prev_button_gpio.when_pressed = lambda: pyautogui.hotkey('alt', 'q')
 
         self.relay_outputs = [
-            OutputDevice(self.system_config.pump1_gpio, active_high=True, initial_value=False),
-            OutputDevice(self.system_config.pump2_gpio, active_high=True, initial_value=False),
-            OutputDevice(self.system_config.pump3_gpio, active_high=True, initial_value=False),
-            OutputDevice(self.system_config.pump4_gpio, active_high=True, initial_value=False)
+            # OutputDevice(self.system_config.pump1_gpio, active_high=True, initial_value=False),
+            # OutputDevice(self.system_config.pump2_gpio, active_high=True, initial_value=False),
+            # OutputDevice(self.system_config.pump3_gpio, active_high=True, initial_value=False),
+            # OutputDevice(self.system_config.pump4_gpio, active_high=True, initial_value=False)
         ]
 
         self.active_timers = []
@@ -52,6 +52,8 @@ class DrinkMachine():
             volume_l = volume_ml / 1000
             time_s = volume_l / self.FLOW_RATE
             self.activate_relay(self.relay_outputs[int(cartridge_no)-1], time_s)
+        
+        self.isPouring = False
 
     def stop(self):
         # Cancel all timers
