@@ -38,11 +38,11 @@ class AuthManager():
         if str(userInput) == str(self.OTP): # if correct OTP
             # response = make_response(render_template('index.html'))
             self.devices[request.remote_addr] = self.OTP
-            self.regenerateOTP()
             response = make_response()
             response.headers["HX-Redirect"] = "/"
             # return jsonify(success=True), 201, {"HX-Redirect": "/"}
             response.set_cookie('Authorization', self.generate_auth(userIP)) # generate authorization cookie based on user's IP and return it
+            self.regenerateOTP()
             return response
         else:
             flash("Incorrect One Time Password!")
