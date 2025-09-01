@@ -1,10 +1,7 @@
-import json
+from flask_socketio import emit
 from flask import request, jsonify
-
+from . import AuthSession, routes
 from hardware import *
-from .authmanager import AuthManager
-
-from . import AuthSession, routes # import constants from initialiser file
 
 drinkmachine = DrinkMachine()
 
@@ -109,6 +106,8 @@ def getOTP():
 def start():
    configNo = request.json["configNo"]
    drinkmachine.start(configNo)
+   state = drinkmachine.get_state()
+   emit("pour_state", state, broadcast=True, namespace="/")  # <-- works!
    return jsonify(success=True), 200
 
 @routes.route('/api/stop', methods=['POST'])
@@ -119,6 +118,17 @@ def stop():
 
 @routes.route('/api/getsystemconfig', methods=['GET'])
 @AuthSession.auth_required
-def getCartridges():
+def getSystemConfig():
    return jsonify(SystemConfigurationLoader().load()), 200 # return all configs and their data to be handled front-end
+
+@routes.route('/api/getstate', methods=['GET'])
+@AuthSession.auth_required
+def getState():
+    return jsonify({
+        "pouring": drinkmachine.isPouring,
+        "drink": drinkmachine.drinkName,
+        "progress": drinkmachine.get_progress()
+    }), 200
+
+
 

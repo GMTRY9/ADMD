@@ -1,12 +1,20 @@
 {
     "cartridges" : 4,
-    "flow_rate_l_s" : 0.03,
+
     "start_button_gpio" : 14,
     "stop_button_gpio" : 15,
     "next_button_gpio" : 18,
     "prev_button_gpio" : 23,
+
     "pump1_gpio" : 21,
+    "pump1_flow_rate_l_s" : 0.03,
+
     "pump2_gpio" : 20,
+    "pump2_flow_rate_l_s" : 0.03,
+
     "pump3_gpio" : 16,
-    "pump4_gpio" : 12
+    "pump3_flow_rate_l_s" : 0.03,
+
+    "pump4_gpio" : 12,
+    "pump4_flow_rate_l_s" : 0.03
 }

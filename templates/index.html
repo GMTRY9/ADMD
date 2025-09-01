@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/htmx.org@1.9.6" integrity="sha384-FhXw7b6AlE/jyjlZH5iHa/tTe9EpJ1Y55RjcgPbjeWMskSxZt1v9qkxLJWNJaGni" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-keyboard@3/build/css/index.css" />
   <script src="https://cdn.jsdelivr.net/npm/simple-keyboard@3/build/index.js"></script>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 </head>
 <body>
   <div class="otp-container">
@@ -23,7 +24,9 @@
     <button onclick="setMode('create')">Create</button>
     <button onclick="setMode('delete')">Delete</button>
   </div>
-
+  <div id="pouring-banner" 
+     style="display:none; font-size:20px; font-weight:bold; color:#28a745; margin:10px 0;">
+  </div>
   <form id="carousel-form">
     <div class="carousel-container" id="carouselContainer">
       <div class="carousel-track" id="carouselTrack"></div>
@@ -44,6 +47,39 @@
     let pourAnimationFrame = null;
     const DEFAULT_SIZE = 200;
     var FLOW_RATE; // mL/sec
+    const socket = io();
+
+    // Listen for pouring state
+    socket.on("pour_state", (data) => {
+      console.log("Pour state:", data);
+
+      const { active, drink, progress } = data;
+
+      const pouringBanner = document.getElementById("pouring-banner");
+      const startBtn = document.getElementById("startBtn");
+
+      if (active) {
+        // Show banner
+        pouringBanner.textContent = `Currently Pouring: ${drink}`;
+        pouringBanner.style.display = "block";
+
+        // Disable Start button
+        startBtn.disabled = true;
+        startBtn.classList.add("disabled");
+
+        // Update progress bars if looking at the right config
+        const slide = document.getElementsByClassName("carousel-slide")[currentIndex];
+        if (Object.values(drinkConfigs)[currentIndex].name === drink) {
+          const fills = slide.querySelectorAll(".fill");
+          fills.forEach(f => f.style.height = progress + "%");
+        }
+      } else {
+        // Hide banner
+        pouringBanner.style.display = "none";
+        startBtn.disabled = false;
+        startBtn.classList.remove("disabled");
+      }
+    });
 
     async function fetchConfigs() {
       try {

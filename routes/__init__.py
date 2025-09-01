@@ -1,13 +1,14 @@
 from flask import Blueprint, current_app
 from .authmanager import AuthManager
 
-# currentUserConfig = ["", ""] # initialise global variable
-# # currentUserConfig = ["(ConfigName)", "(Current Config's HTML)"]
+routes = Blueprint("routes", __name__)
+AuthSession = AuthManager(current_app.config["SECRET_KEY"])
 
-AuthSession = AuthManager(current_app.config["SECRET_KEY"]) # initialise constant authmanager object with environment secret
+def register_socketio(socketio):
+    @socketio.on("connect")
+    def handle_connect():
+        print("Client connected")
 
-routes = Blueprint('routes', __name__)
-
-# append all routes from api.py and index.py
-from .api import * 
+# import routes AFTER blueprint/socketio setup
+from .api import *
 from .index import *

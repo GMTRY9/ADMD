@@ -13,17 +13,22 @@ class SystemConfigurationLoader:
 
     def _mapper(self, json) -> SystemConfiguration:
         cartridges = json["cartridges"] # get configname data from json
-        flow_rate = json["flow_rate_l_s"] # get grid size from json
         start_button_gpio = json["start_button_gpio"]
         stop_button_gpio = json["stop_button_gpio"]
         next_button_gpio = json["next_button_gpio"]
         prev_button_gpio = json["prev_button_gpio"]
         pump1_gpio = json["pump1_gpio"]
+        pump1_flow_rate_l_s = json["pump1_flow_rate_l_s"]
         pump2_gpio = json["pump2_gpio"]
+        pump2_flow_rate_l_s = json["pump2_flow_rate_l_s"]
         pump3_gpio = json["pump3_gpio"]
+        pump3_flow_rate_l_s = json["pump3_flow_rate_l_s"]
         pump4_gpio = json["pump4_gpio"]
-        return SystemConfiguration(cartridges, flow_rate, 
+        pump4_flow_rate_l_s = json["pump4_flow_rate_l_s"]
+        return SystemConfiguration(cartridges,
                                    start_button_gpio, stop_button_gpio,
                                    next_button_gpio, prev_button_gpio,
-                                   pump1_gpio, pump2_gpio, pump3_gpio,
-                                   pump4_gpio) # initialise UserConfiguration dataclass with data
+                                   pump1_gpio, pump1_flow_rate_l_s, 
+                                   pump2_gpio, pump2_flow_rate_l_s, 
+                                   pump3_gpio, pump3_flow_rate_l_s,
+                                   pump4_gpio, pump4_flow_rate_l_s,) # initialise UserConfiguration dataclass with data
