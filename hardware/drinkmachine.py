@@ -10,7 +10,7 @@ import traceback
 class DrinkMachine():
     def __init__(self):
         self.socketio = None
-        
+
         self.system_config = SystemConfigurationLoader().load()
         self.NUM_CARTRIDGES = self.system_config.get_cartridges()
         print("initialising drink machine")
@@ -72,16 +72,16 @@ class DrinkMachine():
         elapsed = time.time() - longest["start"]
         return min(elapsed / longest["duration"], 1.0)  # clamp 0–1
     
-    def relayOff(self, relay):
-        relay.off()
-        # remove finished relay from active list
-        self.active_relays = [t for t in self.active_relays if t["relay"] != relay]
-        if not self.active_relays:   # all pouring finished
-            self.isPouring = False
-            self.drinkName = None
-            self.socketio.emit("pour_state", self.get_state())
-
     def activate_relay(self, relay, duration):
+        def relayOff():
+            relay.off()
+            # remove finished relay from active list
+            self.active_relays = [t for t in self.active_relays if t["relay"] != relay]
+            if not self.active_relays:   # all pouring finished
+                self.isPouring = False
+                self.drinkName = None
+                self.socketio.emit("pour_state", self.get_state())
+
         relay.on()
         start_time = time.time()
         self.active_relays.append({
@@ -90,11 +90,7 @@ class DrinkMachine():
             "duration": duration
         })
         # async background task replaces threading.Timer
-        self._relay_worker(relay, duration)
-
-    def _relay_worker(self, relay, duration):
-        """Async task that waits, then turns relay off safely."""
-        Timer(duration, lambda : self.relayOff(relay))
+        Timer(duration, relayOff)
 
     def start(self, config_index):
         config = UserConfigurationLoader(str(config_index)).load()
