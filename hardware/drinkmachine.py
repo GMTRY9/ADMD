@@ -1,3 +1,4 @@
+from threading import Timer
 from .UserConfigurations import *
 from .SystemConfigurations import *
 from flask_socketio import emit, SocketIO
@@ -6,12 +7,10 @@ import pyautogui
 import time
 import traceback
 
-
-socketio = SocketIO()  # make sure this is initialized in your Flask app
-
 class DrinkMachine():
     def __init__(self):
         self.socketio = None
+        
         self.system_config = SystemConfigurationLoader().load()
         self.NUM_CARTRIDGES = self.system_config.get_cartridges()
         print("initialising drink machine")
@@ -91,12 +90,11 @@ class DrinkMachine():
             "duration": duration
         })
         # async background task replaces threading.Timer
-        socketio.start_background_task(self._relay_worker, relay, duration)
+        self._relay_worker(relay, duration)
 
     def _relay_worker(self, relay, duration):
         """Async task that waits, then turns relay off safely."""
-        socketio.sleep(duration)
-        self.relayOff(relay)
+        Timer(duration, lambda : self.relayOff(relay))
 
     def start(self, config_index):
         config = UserConfigurationLoader(str(config_index)).load()
