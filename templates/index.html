@@ -51,35 +51,40 @@
 
     // Listen for pouring state
     socket.on("pour_state", (data) => {
-      console.log("Pour state:", data);
-
       const { active, drink, progress } = data;
-
       const pouringBanner = document.getElementById("pouring-banner");
-      const startBtn = document.getElementById("startBtn");
 
       if (active) {
-        // Show banner
         pouringBanner.textContent = `Currently Pouring: ${drink}`;
         pouringBanner.style.display = "block";
 
-        // Disable Start button
-        startBtn.disabled = true;
-        startBtn.classList.add("disabled");
+        // disable all start buttons
+        document.querySelectorAll(".startBtn").forEach(btn => {
+          btn.disabled = true;
+          btn.classList.add("disabled");
+        });
+        document.querySelectorAll(".stopBtn").forEach(btn => {
+          btn.disabled = false; // allow stopping
+        });
 
-        // Update progress bars if looking at the right config
+        // update progress
         const slide = document.getElementsByClassName("carousel-slide")[currentIndex];
         if (Object.values(drinkConfigs)[currentIndex].name === drink) {
           const fills = slide.querySelectorAll(".fill");
           fills.forEach(f => f.style.height = progress + "%");
         }
       } else {
-        // Hide banner
         pouringBanner.style.display = "none";
-        startBtn.disabled = false;
-        startBtn.classList.remove("disabled");
+        document.querySelectorAll(".startBtn").forEach(btn => {
+          btn.disabled = false;
+          btn.classList.remove("disabled");
+        });
+        document.querySelectorAll(".stopBtn").forEach(btn => {
+          btn.disabled = true;
+        });
       }
     });
+
 
     async function fetchConfigs() {
       try {
@@ -331,15 +336,14 @@
           const startBtn = document.createElement("button");
           startBtn.textContent = "Start";
           startBtn.type = "button";
-          startBtn.id = "startBtn";
+          startBtn.className = "startBtn";
+          startBtn.dataset.index = index;   // so we know which slide
           startBtn.onclick = async () => {
             try {
               await fetch("/api/start", {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json"
-                },
-                body: JSON.stringify({"configNo":key})
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ "configNo": key })
               });
               startPouring(drink);
             } catch (err) {
@@ -350,7 +354,8 @@
           const stopBtn = document.createElement("button");
           stopBtn.textContent = "Stop";
           stopBtn.type = "button";
-          stopBtn.id = "stopBtn";
+          stopBtn.className = "stopBtn";
+          stopBtn.dataset.index = index;
           stopBtn.onclick = async () => {
             try {
               await fetch("/api/stop", { method: "POST" });
@@ -542,20 +547,20 @@
 
       if (ctrl && alt) {
         switch (event.key) {
-          case "s": // Ctrl + Alt + S => Start
-            console.log("start");
-            document.getElementById("startBtn").click();
+          case "s": // Start current
+            document.querySelectorAll(".carousel-slide")[currentIndex]
+              .querySelector(".startBtn")
+              ?.click();
             break;
-          case "x": // Ctrl + Alt + X => Stop
-          console.log("stop");
-            document.getElementById("stopBtn").click();
+          case "x": // Stop current
+            document.querySelectorAll(".carousel-slide")[currentIndex]
+              .querySelector(".stopBtn")
+              ?.click();
             break;
-          case "ArrowLeft": // Ctrl + Alt + ← => Prev
-            console.log("prev");
+          case "ArrowLeft":
             document.getElementById("prevBtn").click();
             break;
-          case "ArrowRight": // Ctrl + Alt + → => Next
-            console.log("next");
+          case "ArrowRight":
             document.getElementById("nextBtn").click();
             break;
         }
@@ -563,11 +568,20 @@
     });
 
     document.addEventListener("keydown", (e) => {
-      if (e.altKey && e.key === "1") document.getElementById("startBtn").click();
-      if (e.altKey && e.key === "2") document.getElementById("stopBtn").click();
+      if (e.altKey && e.key === "1") {
+        document.querySelectorAll(".carousel-slide")[currentIndex]
+          .querySelector(".startBtn")
+          ?.click();
+      }
+      if (e.altKey && e.key === "2") {
+        document.querySelectorAll(".carousel-slide")[currentIndex]
+          .querySelector(".stopBtn")
+          ?.click();
+      }
       if (e.altKey && e.key === "q") document.getElementById("prevBtn").click();
       if (e.altKey && e.key === "w") document.getElementById("nextBtn").click();
     });
+
 
     function handleSwipe() {
       if (pouring) {

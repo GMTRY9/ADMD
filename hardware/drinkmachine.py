@@ -84,13 +84,14 @@ class DrinkMachine():
 
         relay.on()
         start_time = time.time()
+        timer = Timer(duration, relayOff)
+        timer.start()
         self.active_relays.append({
             "relay": relay,
             "start": start_time,
             "duration": duration
         })
-        # async background task replaces threading.Timer
-        Timer(duration, relayOff)
+        
 
     def start(self, config_index):
         config = UserConfigurationLoader(str(config_index)).load()
