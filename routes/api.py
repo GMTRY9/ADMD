@@ -104,6 +104,7 @@ def getOTP():
 @routes.route('/api/start', methods=['POST'])
 @AuthSession.auth_required
 def start():
+   drinkmachine.test_socket()
    configNo = request.json["configNo"]
    drinkmachine.start(configNo)
    state = drinkmachine.get_state()

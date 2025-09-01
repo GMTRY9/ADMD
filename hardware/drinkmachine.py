@@ -43,6 +43,9 @@ class DrinkMachine():
 
         self.active_timers = []
 
+    def test_socket(self):
+        emit("pour_state", self.get_state(), broadcast=True, namespace="/")
+
     def get_state(self):
         return {
             "active" : self.isPouring,
@@ -60,31 +63,30 @@ class DrinkMachine():
 
         progress = min(elapsed / longest["duration"], 1.0)  # clamp 0–1
         return progress
+    
+    def relayOff(self, relay):
+        relay.off()
+        # remove finished timer
+        self.active_timers = [t for t in self.active_timers if t["relay"] != relay]
+        if not self.active_timers:   # all pouring finished
+            self.isPouring = False
+            self.drinkName = None
+            emit("pour_state", self.get_state(), broadcast=True, namespace="/")  # <-- works!
+
+    def activate_relay(self, relay, duration):
+        relay.on()
+        start_time = time.time()
+        timer = Timer(duration, lambda : self.relayOff(relay))
+        timer.start()
+
+        self.active_timers.append({
+            "relay": relay,
+            "timer": timer,
+            "start": start_time,
+            "duration": duration
+        })
 
     def start(self, config_index):
-        def activate_relay(self, relay, duration):
-            def relayOff():
-                relay.off()
-                # remove finished timer
-                self.active_timers = [t for t in self.active_timers if t["relay"] != relay]
-                if not self.active_timers:   # all pouring finished
-                    self.isPouring = False
-                    self.drinkName = None
-                    # 🔥 notify front-end to remove the banner
-                    emit("pour_state", self.get_state(), broadcast=True, namespace="/")  # <-- works!
-
-            relay.on()
-            start_time = time.time()
-            timer = Timer(duration, relayOff)
-            timer.start()
-
-            self.active_timers.append({
-                "relay": relay,
-                "timer": timer,
-                "start": start_time,
-                "duration": duration
-        })
-                
         config = UserConfigurationLoader(str(config_index)).load()
     
         print(config.proportions)
@@ -97,7 +99,7 @@ class DrinkMachine():
         for cartridge_no, volume_ml in config.proportions.items():
             volume_l = volume_ml / 1000
             time_s = volume_l / self.flow_rates[int(cartridge_no)]
-            activate_relay(self.relay_outputs[int(cartridge_no)-1], time_s)
+            self.activate_relay(self.relay_outputs[int(cartridge_no)-1], time_s)
 
     def stop(self):
         # Cancel all timers
