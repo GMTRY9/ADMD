@@ -3,8 +3,6 @@ from flask import request, jsonify
 from . import AuthSession, routes
 from hardware import *
 
-drinkmachine = DrinkMachine()
-
 @routes.route('/api/authenticate', methods=['GET'])
 def authDevice():
    if request.method == 'GET':
@@ -108,6 +106,7 @@ def start():
    configNo = request.json["configNo"]
    drinkmachine.start(configNo)
    state = drinkmachine.get_state()
+   print("should be emitting")
    emit("pour_state", state, broadcast=True, namespace="/")  # <-- works!
    return jsonify(success=True), 200
 

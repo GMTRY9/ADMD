@@ -1,27 +1,33 @@
 from .UserConfigurations import *
 from .SystemConfigurations import *
-from flask_socketio import emit
-
+from flask_socketio import emit, SocketIO
 from gpiozero import Button, OutputDevice
 import pyautogui
 import time
-from threading import Timer
+import traceback
+
+
+socketio = SocketIO()  # make sure this is initialized in your Flask app
 
 class DrinkMachine():
     def __init__(self):
+        self.socketio = None
         self.system_config = SystemConfigurationLoader().load()
         self.NUM_CARTRIDGES = self.system_config.get_cartridges()
         print("initialising drink machine")
+        print("DrinkMachine init", self)
+        traceback.print_stack(limit=3)
           
         self.flow_rates = {
-            1 : self.system_config.pump1_flow_rate_l_s,
-            2 : self.system_config.pump2_flow_rate_l_s,
-            3 : self.system_config.pump3_flow_rate_l_s,
-            4 : self.system_config.pump4_flow_rate_l_s
+            1: self.system_config.pump1_flow_rate_l_s,
+            2: self.system_config.pump2_flow_rate_l_s,
+            3: self.system_config.pump3_flow_rate_l_s,
+            4: self.system_config.pump4_flow_rate_l_s
         }
         self.isPouring = False
         self.drinkName = None
 
+        # Buttons → send hotkeys
         self.start_button = Button(self.system_config.start_button_gpio, bounce_time=0.1)
         self.start_button.when_pressed = lambda: pyautogui.hotkey('alt', '1')
 
@@ -34,6 +40,7 @@ class DrinkMachine():
         self.prev_button_gpio = Button(self.system_config.prev_button_gpio, bounce_time=0.1)
         self.prev_button_gpio.when_pressed = lambda: pyautogui.hotkey('alt', 'q')
 
+        # Relay outputs
         self.relay_outputs = [
             OutputDevice(self.system_config.pump1_gpio, active_high=True, initial_value=False),
             OutputDevice(self.system_config.pump2_gpio, active_high=True, initial_value=False),
@@ -41,54 +48,58 @@ class DrinkMachine():
             OutputDevice(self.system_config.pump4_gpio, active_high=True, initial_value=False)
         ]
 
-        self.active_timers = []
+        # Track active pours
+        self.active_relays = []  # each: {relay, start, duration}
+
+    def set_socketio(self, socketio):
+        self.socketio = socketio
 
     def test_socket(self):
-        emit("pour_state", self.get_state(), broadcast=True, namespace="/")
+        self.socketio.emit("pour_state", self.get_state())
 
     def get_state(self):
         return {
-            "active" : self.isPouring,
-            "drink" : self.drinkName,
-            "progress" : self.get_progress()
+            "active": self.isPouring,
+            "drink": self.drinkName,
+            "progress": self.get_progress()
         }
     
     def get_progress(self):
-        if not self.active_timers:
+        if not self.active_relays:
             return 0.0
 
-        # take the "longest" active timer (drink progress is tied to the slowest component)
-        longest = max(self.active_timers, key=lambda t: t["duration"])
+        # progress is tied to the slowest component
+        longest = max(self.active_relays, key=lambda t: t["duration"])
         elapsed = time.time() - longest["start"]
-
-        progress = min(elapsed / longest["duration"], 1.0)  # clamp 0–1
-        return progress
+        return min(elapsed / longest["duration"], 1.0)  # clamp 0–1
     
     def relayOff(self, relay):
         relay.off()
-        # remove finished timer
-        self.active_timers = [t for t in self.active_timers if t["relay"] != relay]
-        if not self.active_timers:   # all pouring finished
+        # remove finished relay from active list
+        self.active_relays = [t for t in self.active_relays if t["relay"] != relay]
+        if not self.active_relays:   # all pouring finished
             self.isPouring = False
             self.drinkName = None
-            emit("pour_state", self.get_state(), broadcast=True, namespace="/")  # <-- works!
+            self.socketio.emit("pour_state", self.get_state())
 
     def activate_relay(self, relay, duration):
         relay.on()
         start_time = time.time()
-        timer = Timer(duration, lambda : self.relayOff(relay))
-        timer.start()
-
-        self.active_timers.append({
+        self.active_relays.append({
             "relay": relay,
-            "timer": timer,
             "start": start_time,
             "duration": duration
         })
+        # async background task replaces threading.Timer
+        socketio.start_background_task(self._relay_worker, relay, duration)
+
+    def _relay_worker(self, relay, duration):
+        """Async task that waits, then turns relay off safely."""
+        socketio.sleep(duration)
+        self.relayOff(relay)
 
     def start(self, config_index):
         config = UserConfigurationLoader(str(config_index)).load()
-    
         print(config.proportions)
 
         if self.isPouring:
@@ -96,22 +107,18 @@ class DrinkMachine():
         
         self.isPouring = True
         self.drinkName = config.get_name()
+
         for cartridge_no, volume_ml in config.proportions.items():
             volume_l = volume_ml / 1000
             time_s = volume_l / self.flow_rates[int(cartridge_no)]
-            self.activate_relay(self.relay_outputs[int(cartridge_no)-1], time_s)
+            self.activate_relay(self.relay_outputs[int(cartridge_no) - 1], time_s)
 
     def stop(self):
-        # Cancel all timers
-        for timer in self.active_timers:
-            timer.cancel()
-        self.active_timers.clear()
-
+        # Immediately stop everything
+        for relay in self.relay_outputs:
+            relay.off()
+        self.active_relays.clear()
         self.isPouring = False
         self.drinkName = None
 
-        # Turn off all relays
-        for relay in self.relay_outputs:
-            relay.off()
-        
-        emit("pour_state", self.get_state(), broadcast=True, namespace="/")
+        self.socketio.emit("pour_state", self.get_state())

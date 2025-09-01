@@ -45,8 +45,8 @@
     let originalProportions = {};
     let pouring = false;
     let pourAnimationFrame = null;
+    var systemConfig;
     const DEFAULT_SIZE = 200;
-    var FLOW_RATE; // mL/sec
     const socket = io();
 
     // Listen for pouring state
@@ -96,8 +96,7 @@
       try {
         const response = await fetch("/api/getsystemconfig");
         if (!response.ok) throw new Error("Network error");
-        const systemConfig = await response.json();
-        FLOW_RATE = systemConfig.flow_rate_l_s * 1000;
+        systemConfig = await response.json();
       } catch (e) {
         console.error("Fetch error:", e);
       }
@@ -412,7 +411,8 @@
         fills.forEach((fill, index) => {
           const cartNum = (index + 1).toString();
           const originalML = originalProportions[cartNum] || 0;
-          const remainingML = Math.max(originalML - FLOW_RATE * elapsed, 0);
+          let flow_rate = parseFloat(systemConfig[`pump${cartNum}_flow_rate_l_s`]) * 1000
+          const remainingML = Math.max(originalML - flow_rate * elapsed, 0);
           const percent = (remainingML / DEFAULT_SIZE) * 100;
           // nabl fix
           fill.style.height = percent - 1 + "%";

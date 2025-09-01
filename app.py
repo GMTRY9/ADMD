@@ -1,8 +1,7 @@
 from flask import Flask
 from flask_socketio import SocketIO
 from config import DevelopmentConfig as CurrentConfig
-
-socketio = SocketIO(cors_allowed_origins="*")  # create globally
+from hardware.manager import drinkmachine
 
 def create_app():
     app = Flask(__name__)
@@ -13,9 +12,11 @@ def create_app():
     app.register_blueprint(routes)
 
     socketio.init_app(app)  # bind socketio
+    drinkmachine.set_socketio(socketio)
     register_socketio(socketio)  # give socketio to routes
 
     return app
 
 if __name__ == "__main__":
+    socketio = SocketIO(cors_allowed_origins="*")  # create globally
     socketio.run(create_app(), debug=False)
