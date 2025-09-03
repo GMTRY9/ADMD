@@ -19,4 +19,4 @@ def create_app():
 
 if __name__ == "__main__":
     socketio = SocketIO(cors_allowed_origins="*")  # create globally
-    socketio.run(create_app(), debug=False)
+    socketio.run(create_app(), debug=False, host="0.0.0.0", port=80)

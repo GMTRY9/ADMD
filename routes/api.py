@@ -71,7 +71,8 @@ def configCreate():
       if configname in (UserConfigurationManager.list_configs()):
          return jsonify(error="Config name in use"), 400
 
-      UserConfigurationManager(configname).create(UserConfigurationManager.get_available_config_name())
+      UserConfigurationManager(configname).create(filename=UserConfigurationManager.get_available_config_name(),
+                                                  proportions=newconfig["proportions"])
       
    return jsonify(success=True), 201, {"HX-Redirect": "/"} # return redirect to index (config editing page)
 

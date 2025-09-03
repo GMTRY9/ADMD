@@ -8,7 +8,9 @@ class UserConfigurationManager:
         self.name = name
 
     def create(self, filename, proportions={"1":0,"2":0,"3":0,"4":0}): # default parameters for default config for creation
-        print(filename)
+        for key, value in proportions.items():
+            if not value > 0:
+                proportions[key] = 0
         if self.name not in self.list_configs(): # if config name not in use
             new_user_config = UserConfiguration(f"{self.name}", proportions) # initialise UserConfiguration dataclass object with data
             UserConfigurationSaver(new_user_config).save(filename) # save config

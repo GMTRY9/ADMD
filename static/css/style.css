@@ -112,8 +112,8 @@ body {
 .mode-buttons {
     display: flex;
     justify-content: center;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 15px;
+    margin-bottom: 15px;
 }
 
 .mode-buttons button {
@@ -203,12 +203,12 @@ body {
 .nav-buttons {
     display: flex;
     justify-content: space-between;
-    margin-top: 20px;
+    margin-top: 5px;
 }
 
 .nav-buttons button {
-    padding: 10px 20px;
-    font-size: 4vw;
+    padding: 5px 10px;
+    font-size: 10px;
     cursor: pointer;
 }
 
@@ -335,4 +335,28 @@ body {
 
   @keyframes fadeOut {
     to { opacity: 0; }
+  }
+
+  /* On small screens, move nav buttons below OTP + Keyboard toggle */
+@media (max-width: 600px) {
+    .otp-container,
+    #keyboardToggleContainer {
+      position: static; /* let them flow in the document instead of absolute */
+      margin: 10px auto;
+      display: flex;
+      justify-content: center;
+    }
+  
+    .nav-buttons {
+      position: static;
+      display: flex;
+      justify-content: center;
+      margin-top: 15px;
+      gap: 15px;
+    }
+  
+    .nav-buttons button {
+      font-size: 14px;
+      padding: 8px 14px;
+    }
   }
