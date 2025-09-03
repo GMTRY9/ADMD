@@ -7,4 +7,3 @@ all hosts on 0.0.0.0
 
 # todo
 * make phone auth work and redirect properly to the index
-* make screen lock on created config until cancel/ save
