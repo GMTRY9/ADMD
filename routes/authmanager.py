@@ -20,8 +20,8 @@ class AuthManager():
         @wraps(f)
         def decorator(*args, **kws):
             user_addr = request.remote_addr
-            # if user_addr in ('127.0.0.1', '::1', 'localhost'):
-            #     return f(*args, **kws)
+            if user_addr in ('127.0.0.1', '::1', 'localhost'):
+                return f(*args, **kws)
             if 'Authorization' not in request.cookies:
                 return self.userUnauthenticated() # if no authorization cookie present, user is definitely unauthorised
             data = request.cookies.get('Authorization')
