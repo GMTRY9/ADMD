@@ -1,0 +1,13 @@
+[Unit]
+Description=Chromium Kiosk
+After=admd.service
+
+[Service]
+User=pi
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStart=startx /usr/bin/chromium-browser --kiosk --noerrdialogs --disable-translate --incognito http://localhost
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

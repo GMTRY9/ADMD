@@ -1,0 +1,12 @@
+kiosk.service
+/etc/systemd/system/kiosk.service
+
+admd service
+/etc/systemd/system/admd.service
+
+admd starts webapp, kiosk starts chrome browser
+
+auto update script needs:
+sudo chmod +x /usr/local/bin/git-auto-update.sh
+
+make sure to enable all services

@@ -1,0 +1,14 @@
+[Unit]
+Description=Auto Git Pull on Network Connection
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/pi/PTP_Test_Scripts/ADMD/pi_scripts/git-auto-update.sh
+WorkingDirectory=/home/pi/PTP_Test_Scripts/ADMD
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
