@@ -1,9 +1,9 @@
 {
     "cartridges" : 4,
 
-    "start_button_gpio" : 14,
+    "start_button_gpio" : 18,
     "stop_button_gpio" : 15,
-    "next_button_gpio" : 18,
+    "next_button_gpio" : 14,
     "prev_button_gpio" : 23,
 
     "pump1_gpio" : 21,
