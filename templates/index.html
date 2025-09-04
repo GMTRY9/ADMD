@@ -386,6 +386,7 @@
 
       if (mode === 'create') {
         const newId = generateNewId();
+        creating = true;
         drinkConfigs[newId] = {
           name: "New Drink",
           proportions: { "1": 0, "2": 0, "3": 0, "4": 0 }
@@ -510,7 +511,7 @@
     }
 
     document.getElementById("nextBtn").addEventListener("click", () => {
-      if (pouring) {
+      if (pouring || mode === "create") {
         return
       }
       const keys = Object.keys(drinkConfigs);
@@ -519,7 +520,7 @@
     });
 
     document.getElementById("prevBtn").addEventListener("click", () => {
-      if (pouring) {
+      if (pouring || mode === "create") {
         return
       }
       const keys = Object.keys(drinkConfigs);
@@ -586,7 +587,7 @@
 
 
     function handleSwipe() {
-      if (pouring) {
+      if (pouring || mode === "create") {
         return
       }
 
