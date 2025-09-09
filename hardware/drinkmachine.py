@@ -32,11 +32,16 @@ class DrinkMachine():
         self.isPouring = False
         self.drinkName = None
 
+        stop_button_gpio = self.system_config.stop_button_gpio
+        start_button_gpio = self.system_config.start_button_gpio
+        next_button_gpio = self.system_config.next_button_gpio
+        prev_button_gpio = self.system_config.prev_button_gpio
+
         # Buttons setup
-        self._setup_button(self.system_config.start_button_gpio, lambda: self._press_hotkey('alt', '1'))
-        self._setup_button(self.system_config.stop_button_gpio, lambda: self._press_hotkey('alt', '2'))
-        self._setup_button(self.system_config.next_button_gpio, lambda: self._press_hotkey('alt', 'w'))
-        self._setup_button(self.system_config.prev_button_gpio, lambda: self._press_hotkey('alt', 'q'))
+        self._setup_button(stop_button_gpio, lambda: self._press_hotkey('alt', '2', stop_button_gpio))
+        self._setup_button(start_button_gpio, lambda: self._press_hotkey('alt', '1', start_button_gpio))
+        self._setup_button(next_button_gpio, lambda: self._press_hotkey('alt', 'w', next_button_gpio))
+        self._setup_button(prev_button_gpio, lambda: self._press_hotkey('alt', 'q', prev_button_gpio))
 
         # Relay outputs setup
         self.relay_pins = [
@@ -51,14 +56,14 @@ class DrinkMachine():
         # Track active pours
         self.active_relays = []  # each: {pin, start, duration}
 
-    def _press_hotkey(*hotkey):
-        print("pressing", hotkey)
-        pyautogui.hotkey(hotkey)
+    def _press_hotkey(key1, key2, pin):
+        print(f"pin: {pin} extreme edging detected\npressing {key1} + {key2}")
+        pyautogui.hotkey(key1, key2)
 
     def _setup_button(self, pin, callback):
         """Setup a GPIO input with falling edge detection and callback."""
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(pin, GPIO.FALLING, callback=lambda channel: callback(), bouncetime=100)
+        GPIO.add_event_detect(pin, GPIO.RISING, callback=lambda channel: callback(), bouncetime=400)
 
     def set_socketio(self, socketio):
         self.socketio = socketio
