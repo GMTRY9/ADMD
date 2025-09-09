@@ -33,10 +33,10 @@ class DrinkMachine():
         self.drinkName = None
 
         # Buttons setup
-        self._setup_button(self.system_config.start_button_gpio, lambda: pyautogui.hotkey('alt', '1'))
-        self._setup_button(self.system_config.stop_button_gpio, lambda: pyautogui.hotkey('alt', '2'))
-        self._setup_button(self.system_config.next_button_gpio, lambda: pyautogui.hotkey('alt', 'w'))
-        self._setup_button(self.system_config.prev_button_gpio, lambda: pyautogui.hotkey('alt', 'q'))
+        self._setup_button(self.system_config.start_button_gpio, lambda: self._press_hotkey('alt', '1'))
+        self._setup_button(self.system_config.stop_button_gpio, lambda: self._press_hotkey('alt', '2'))
+        self._setup_button(self.system_config.next_button_gpio, lambda: self._press_hotkey('alt', 'w'))
+        self._setup_button(self.system_config.prev_button_gpio, lambda: self._press_hotkey('alt', 'q'))
 
         # Relay outputs setup
         self.relay_pins = [
@@ -50,6 +50,10 @@ class DrinkMachine():
 
         # Track active pours
         self.active_relays = []  # each: {pin, start, duration}
+
+    def _press_hotkey(*hotkey):
+        print("pressing", hotkey)
+        pyautogui.hotkey(hotkey)
 
     def _setup_button(self, pin, callback):
         """Setup a GPIO input with falling edge detection and callback."""
@@ -116,6 +120,7 @@ class DrinkMachine():
             volume_l = volume_ml / 1000
             time_s = volume_l / self.flow_rates[int(cartridge_no)]
             pin = self.relay_pins[int(cartridge_no) - 1]
+            time.sleep(0.1)
             self.activate_relay(pin, time_s)
 
     def stop(self):
