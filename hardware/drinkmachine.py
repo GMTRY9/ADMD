@@ -40,8 +40,8 @@ class DrinkMachine():
         # Buttons setup
         self._setup_button(stop_button_gpio, lambda: self._press_hotkey('alt', '2', stop_button_gpio))
         self._setup_button(start_button_gpio, lambda: self._press_hotkey('alt', '1', start_button_gpio))
-        self._setup_button(next_button_gpio, lambda: self._press_hotkey('alt', 'w', next_button_gpio))
-        self._setup_button(prev_button_gpio, lambda: self._press_hotkey('alt', 'q', prev_button_gpio))
+        # self._setup_button(next_button_gpio, lambda: self._press_hotkey('alt', 'w', next_button_gpio))
+        # self._setup_button(prev_button_gpio, lambda: self._press_hotkey('alt', 'q', prev_button_gpio))
 
         # Relay outputs setup
         self.relay_pins = [
@@ -63,7 +63,7 @@ class DrinkMachine():
     def _setup_button(self, pin, callback):
         """Setup a GPIO input with falling edge detection and callback."""
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(pin, GPIO.RISING, callback=lambda channel: callback(), bouncetime=400)
+        GPIO.add_event_detect(pin, GPIO.RISING, callback=callback, bouncetime=400)
 
     def set_socketio(self, socketio):
         self.socketio = socketio
