@@ -410,7 +410,6 @@ function stopPouring() {
 
   const drink = Object.values(drinkConfigs)[currentIndex];
   resetBars(drink);
-  alert("Pouring stopped and reset.");
 }
 
 function resetBars(drink) {
@@ -454,7 +453,7 @@ function showGreenTick(message = 'Done!') {
   document.body.appendChild(popup);
 
   // Auto-remove at 3s (matches CSS fade timing)
-  const t = setTimeout(() => remove(), 3000);
+  const t = setTimeout(() => remove(), 2000);
 
   // Optional: allow dismiss on click or Esc
   popup.addEventListener('click', () => {
