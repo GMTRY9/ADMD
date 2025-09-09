@@ -4,22 +4,22 @@ import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)  # Use BCM numbering
 GPIO.setwarnings(False)
 
-def start_response():
+def start_response(*args):
     print("start pressed")
 
-def stop_response():
+def stop_response(*args):
     print("stop pressed")
 
-def next_response():
+def next_response(*args):
     print("next pressed")
 
-def prev_response():
+def prev_response(*args):
     print("prev pressed")
 
 def _setup_button(pin, callback):
     """Setup a GPIO input with falling edge detection and callback."""
-    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.add_event_detect(pin, GPIO.RISING, callback=callback, bouncetime=400)
+    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+    GPIO.add_event_detect(pin, GPIO.FALLING, callback=callback, bouncetime=500)
 
 stop_button_gpio = 15
 start_button_gpio = 18
