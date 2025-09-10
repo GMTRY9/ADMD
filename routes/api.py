@@ -2,6 +2,7 @@ from flask_socketio import emit
 from flask import request, jsonify
 from . import AuthSession, routes
 from hardware import *
+import os
 
 @routes.route('/api/authenticate', methods=['GET'])
 def authDevice():
@@ -128,5 +129,12 @@ def getState():
         "progress": drinkmachine.get_progress()
     }), 200
 
-
-
+@routes.route('/api/shutdown', methods=['POST'])
+@AuthSession.auth_required
+def shutdown():
+   try:
+      drinkmachine.cleanup()
+      os.system("sudo shutdown -h now")
+      return jsonify({"status": "ok", "message": "Shutting down"}), 200
+   except Exception as e:
+      return jsonify({"status": "error", "message": str(e)}), 500

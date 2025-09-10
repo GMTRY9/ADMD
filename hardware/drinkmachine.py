@@ -8,6 +8,139 @@ import time
 import traceback
 
 
+class PourScheduler:
+    def __init__(self, relays, flow_rates, socketio=None, max_active=3, min_chunk=1.0, chunks_per_pump=3):
+        self.relays = relays
+        self.flow_rates = flow_rates
+        self.socketio = socketio
+        self.max_active = max_active
+        self.min_chunk = min_chunk
+        self.chunks_per_pump = chunks_per_pump
+
+        self.active_relays = []  # {relay, start, duration, timer}
+        self.plan = []
+        self.is_running = False
+        self.drink_name = None
+
+    def _relay_off(self, relay):
+        relay.off()
+        self.active_relays = [t for t in self.active_relays if t["relay"] != relay]
+
+        if self.socketio:
+            self.socketio.emit("pour_state", self.get_state())
+
+    def _activate_relay(self, relay, duration):
+        def relay_off():
+            self._relay_off(relay)
+
+        relay.on()
+        start_time = time.time()
+        timer = Timer(duration, relay_off)
+        timer.start()
+
+        self.active_relays.append({
+            "relay": relay,
+            "start": start_time,
+            "duration": duration,
+            "timer": timer,
+        })
+
+    def _run_step(self, index):
+        if index >= len(self.plan):
+            # finished
+            self.is_running = False
+            self.drink_name = None
+            if self.socketio:
+                self.socketio.emit("pour_state", self.get_state())
+            return
+
+        relay, dur = self.plan[index]
+
+        # enforce max active relays
+        if len(self.active_relays) >= self.max_active:
+            Timer(0.2, lambda: self._run_step(index)).start()
+            return
+
+        self._activate_relay(relay, dur)
+
+        # schedule next step with a slight overlap
+        Timer(dur * 0.9, lambda: self._run_step(index + 1)).start()
+
+        if self.socketio:
+            self.socketio.emit("pour_state", self.get_state())
+
+    def start(self, proportions, drink_name):
+        if self.is_running:
+            return False
+
+        self.active_relays = []
+        self.is_running = True
+        self.drink_name = drink_name
+
+        # build pour plan
+        pour_plan = []
+        for cartridge_no, volume_ml in proportions.items():
+            if not volume_ml:
+                continue
+            volume_l = volume_ml / 1000
+            total_time = volume_l / self.flow_rates[int(cartridge_no)]
+            relay = self.relays[int(cartridge_no) - 1]
+
+            chunk_time = max(self.min_chunk, total_time / self.chunks_per_pump)
+            remaining = total_time
+            while remaining > 0:
+                dur = min(chunk_time, remaining)
+                pour_plan.append((relay, dur))
+                remaining -= dur
+
+        # interleave plan for mixing
+        interleaved = []
+        while pour_plan:
+            seen_relays = set()
+            for step in pour_plan[:]:
+                relay, dur = step
+                if relay in seen_relays:
+                    continue
+                interleaved.append(step)
+                pour_plan.remove(step)
+                seen_relays.add(relay)
+
+        self.plan = interleaved
+        self._run_step(0)
+        return True
+
+    def stop(self):
+        for t in self.active_relays:
+            if "timer" in t:
+                t["timer"].cancel()
+        for relay in self.relays:
+            relay.off()
+        self.active_relays = []
+        self.plan = []
+        self.is_running = False
+        self.drink_name = None
+
+        if self.socketio:
+            self.socketio.emit("pour_state", self.get_state())
+
+    def get_progress(self):
+        if not self.active_relays and not self.plan:
+            return 1.0 if not self.is_running else 0.0
+        if not self.active_relays:
+            return 0.0
+
+        longest = max(self.active_relays, key=lambda t: t["duration"])
+        elapsed = time.time() - longest["start"]
+        return min(elapsed / longest["duration"], 1.0)
+
+    def get_state(self):
+        return {
+            "active": self.is_running,
+            "drink": self.drink_name,
+            "progress": self.get_progress(),
+        }
+
+
 class DrinkMachine:
     def __init__(self):
         self.socketio = None
@@ -25,21 +158,16 @@ class DrinkMachine:
             4: self.system_config.pump4_flow_rate_l_s,
         }
 
-        self.isPouring = False
-        self.drinkName = None
-        self.active_relays = []  # each: {pin, start, duration}
-
         # --- Button setup ---
-        # active_high=True, pull_up=False since wiring = 3.3V press with pulldown
         try:
             self.stop_button = Button(self.system_config.stop_button_gpio,
-                                    pull_up=False, bounce_time=0.07)
+                                      pull_up=False, bounce_time=0.07)
             self.start_button = Button(self.system_config.start_button_gpio,
-                                    pull_up=False, bounce_time=0.07)
+                                       pull_up=False, bounce_time=0.07)
             self.next_button = Button(self.system_config.next_button_gpio,
-                                    pull_up=False, bounce_time=0.07)
+                                      pull_up=False, bounce_time=0.07)
             self.prev_button = Button(self.system_config.prev_button_gpio,
-                                    pull_up=False, bounce_time=0.07)
+                                      pull_up=False, bounce_time=0.07)
 
             # Map button actions
             self.stop_button.when_pressed = lambda: self._press_hotkey("alt", "2")
@@ -55,11 +183,20 @@ class DrinkMachine:
                 self.system_config.pump4_gpio,
             ]
             self.relays = [OutputDevice(pin, active_high=True, initial_value=False)
-                            for pin in self.relay_pins]
+                           for pin in self.relay_pins]
         except:
             print("WARNING: GPIO not detected")
             self.relays = []
-    
+
+        # Pour scheduler
+        self.scheduler = PourScheduler(
+            relays=self.relays,
+            flow_rates=self.flow_rates,
+            socketio=self.socketio,
+            max_active=3,
+            min_chunk=1.0,
+            chunks_per_pump=3,
+        )
 
     def _press_hotkey(self, key1, key2):
         print(f"pressing {key1} + {key2}")
@@ -67,87 +204,28 @@ class DrinkMachine:
 
     def set_socketio(self, socketio):
         self.socketio = socketio
+        self.scheduler.socketio = socketio
 
     def test_socket(self):
-        self.socketio.emit("pour_state", self.get_state())
+        if self.socketio:
+            self.socketio.emit("pour_state", self.get_state())
 
     def get_state(self):
-        return {
-            "active": self.isPouring,
-            "drink": self.drinkName,
-            "progress": self.get_progress(),
-        }
+        return self.scheduler.get_state()
 
     def get_progress(self):
-        if not self.active_relays:
-            return 0
-
-        longest = max(self.active_relays, key=lambda t: t["duration"])
-        if longest["duration"] <= 0:
-            return 1.0
-
-        elapsed = time.time() - longest["start"]
-        return min(elapsed / longest["duration"], 1.0)
-
-    def activate_relay(self, relay: OutputDevice, duration: float):
-        def relay_off():
-            relay.off()
-            self.active_relays = [t for t in self.active_relays if t["relay"] != relay]
-            if not self.active_relays:
-                self.isPouring = False
-                self.drinkName = None
-                if self.socketio:
-                    self.socketio.emit("pour_state", self.get_state())
-
-        relay.on()
-        start_time = time.time()
-        timer = Timer(duration, relay_off)
-        timer.start()
-        self.active_relays.append({
-            "relay": relay,
-            "start": start_time,
-            "duration": duration,
-            "timer": timer,   # <--- keep track of the timer
-        })
+        return self.scheduler.get_progress()
 
     def start(self, config_index):
         config = UserConfigurationLoader(str(config_index)).load()
         print(config.proportions)
-
-        if self.isPouring:
-            return False
-
-        self.active_relays = []
-        self.isPouring = True
-        self.drinkName = config.get_name()
-
-        for cartridge_no, volume_ml in config.proportions.items():
-            if not volume_ml: continue
-            volume_l = volume_ml / 1000
-            time_s = volume_l / self.flow_rates[int(cartridge_no)]
-            relay = self.relays[int(cartridge_no) - 1]
-            time.sleep(0.1)
-            self.activate_relay(relay, time_s)
+        return self.scheduler.start(config.proportions, config.get_name())
 
     def stop(self):
-        # Cancel all timers
-        for t in self.active_relays:
-            if "timer" in t:
-                t["timer"].cancel()
-
-        # Immediately stop all pumps
-        for relay in self.relays:
-            relay.off()
-
-        self.active_relays = []
-        self.isPouring = False
-        self.drinkName = None
-
-        if self.socketio:
-            self.socketio.emit("pour_state", self.get_state())
-
+        self.scheduler.stop()
 
     def cleanup(self):
+        self.scheduler.stop()
         for relay in self.relays:
             relay.off()
         # gpiozero cleans itself up automatically

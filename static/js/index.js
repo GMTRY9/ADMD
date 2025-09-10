@@ -695,3 +695,19 @@ function handleShift() {
   const newLayout = current === "default" ? "shift" : "default";
   keyboard.setOptions({ layoutName: newLayout });
 }
+
+document.getElementById("shutdownBtn").addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to shutdown the ADMD?")) return;
+
+  try {
+    const res = await fetch("/api/shutdown", { method: "POST" });
+    if (res.ok) {
+      alert("Shutdown command sent. The Raspberry Pi will power off shortly.");
+    } else {
+      alert("Failed to send shutdown command.");
+    }
+  } catch (err) {
+    console.error("Shutdown error:", err);
+    alert("Error while sending shutdown request.");
+  }
+});

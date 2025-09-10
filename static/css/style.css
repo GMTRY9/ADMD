@@ -126,7 +126,7 @@ body {
     max-width: 100%;
     margin: auto;
     background: white;
-    padding: 20px;
+    padding: 10px;
     border-radius: 10px;
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -268,30 +268,47 @@ body {
     width: 100%;
     z-index: 999;
 }
-
-#keyboardToggleContainer {
+#systemControls {
     position: absolute;
     top: 20px;
     right: 20px;
-    background-color: #ffffff;
+    display: flex;         /* put items in a row */
+    gap: 10px;             /* spacing between buttons */
+    background-color: #fff;
     padding: 8px 12px;
     border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     z-index: 999;
-    font-size: 14px;
   }
-
+  
+  #shutdownBtn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 7px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  
+  #shutdownBtn:hover {
+    background-color: #c0392b;
+  }
+  
   #keyboardToggle {
-    width: 100%;
-    height: 100%;
-    padding: 10px;
-    font-size: 14px;
     background-color: #60bfdb;
     color: white;
     border: none;
     border-radius: 6px;
+    padding: 5px 7px;
+    font-size: 12px;
     cursor: pointer;
   }
+  
+  #keyboardToggle:hover {
+    background-color: #3f51b5;
+  }
+  
   
   #keyboardToggle:hover {
     background-color: #3f51b5;
@@ -340,7 +357,7 @@ body {
   /* On small screens, move nav buttons below OTP + Keyboard toggle */
 @media (max-width: 600px) {
     .otp-container,
-    #keyboardToggleContainer {
+    #systemControls {
       position: static; /* let them flow in the document instead of absolute */
       margin: 10px auto;
       display: flex;
