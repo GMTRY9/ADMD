@@ -23,8 +23,6 @@ class UserConfiguration:
     
     def set_proportion(self, cartridgeNo : str, ratio : float): # create or overwrite keybind association to button number 
         self.proportions[cartridgeNo] = ratio
-        if len(cartridgeNo) == 0 or ratio == 0.0:
-            del self.proportions[cartridgeNo]
         return
     
     def set_name(self, name : str):

@@ -96,7 +96,8 @@ class DrinkMachine:
             if not self.active_relays:
                 self.isPouring = False
                 self.drinkName = None
-                self.socketio.emit("pour_state", self.get_state())
+                if self.socketio:
+                    self.socketio.emit("pour_state", self.get_state())
 
         relay.on()
         start_time = time.time()
@@ -106,6 +107,7 @@ class DrinkMachine:
             "relay": relay,
             "start": start_time,
             "duration": duration,
+            "timer": timer,   # <--- keep track of the timer
         })
 
     def start(self, config_index):
@@ -128,14 +130,22 @@ class DrinkMachine:
             self.activate_relay(relay, time_s)
 
     def stop(self):
+        # Cancel all timers
+        for t in self.active_relays:
+            if "timer" in t:
+                t["timer"].cancel()
+
         # Immediately stop all pumps
         for relay in self.relays:
             relay.off()
+
         self.active_relays = []
         self.isPouring = False
         self.drinkName = None
+
         if self.socketio:
             self.socketio.emit("pour_state", self.get_state())
+
 
     def cleanup(self):
         for relay in self.relays:
