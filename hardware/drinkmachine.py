@@ -31,30 +31,35 @@ class DrinkMachine:
 
         # --- Button setup ---
         # active_high=True, pull_up=False since wiring = 3.3V press with pulldown
-        self.stop_button = Button(self.system_config.stop_button_gpio,
-                                  pull_up=False, bounce_time=0.4)
-        self.start_button = Button(self.system_config.start_button_gpio,
-                                   pull_up=False, bounce_time=0.4)
-        self.next_button = Button(self.system_config.next_button_gpio,
-                                  pull_up=False, bounce_time=0.4)
-        self.prev_button = Button(self.system_config.prev_button_gpio,
-                                  pull_up=False, bounce_time=0.4)
+        try:
+            self.stop_button = Button(self.system_config.stop_button_gpio,
+                                    pull_up=False, bounce_time=0.07)
+            self.start_button = Button(self.system_config.start_button_gpio,
+                                    pull_up=False, bounce_time=0.07)
+            self.next_button = Button(self.system_config.next_button_gpio,
+                                    pull_up=False, bounce_time=0.07)
+            self.prev_button = Button(self.system_config.prev_button_gpio,
+                                    pull_up=False, bounce_time=0.07)
 
-        # Map button actions
-        self.stop_button.when_pressed = lambda: self._press_hotkey("alt", "2")
-        self.start_button.when_pressed = lambda: self._press_hotkey("alt", "1")
-        self.next_button.when_pressed = lambda: self._press_hotkey("alt", "w")
-        self.prev_button.when_pressed = lambda: self._press_hotkey("alt", "q")
+            # Map button actions
+            self.stop_button.when_pressed = lambda: self._press_hotkey("alt", "2")
+            self.start_button.when_pressed = lambda: self._press_hotkey("alt", "1")
+            self.next_button.when_pressed = lambda: self._press_hotkey("alt", "w")
+            self.prev_button.when_pressed = lambda: self._press_hotkey("alt", "q")
 
-        # --- Relay setup ---
-        self.relay_pins = [
-            self.system_config.pump1_gpio,
-            self.system_config.pump2_gpio,
-            self.system_config.pump3_gpio,
-            self.system_config.pump4_gpio,
-        ]
-        self.relays = [OutputDevice(pin, active_high=True, initial_value=False)
-                       for pin in self.relay_pins]
+            # --- Relay setup ---
+            self.relay_pins = [
+                self.system_config.pump1_gpio,
+                self.system_config.pump2_gpio,
+                self.system_config.pump3_gpio,
+                self.system_config.pump4_gpio,
+            ]
+            self.relays = [OutputDevice(pin, active_high=True, initial_value=False)
+                            for pin in self.relay_pins]
+        except:
+            print("WARNING: GPIO not detected")
+            self.relays = []
+    
 
     def _press_hotkey(self, key1, key2):
         print(f"pressing {key1} + {key2}")
@@ -114,6 +119,7 @@ class DrinkMachine:
         self.drinkName = config.get_name()
 
         for cartridge_no, volume_ml in config.proportions.items():
+            if not volume_ml: continue
             volume_l = volume_ml / 1000
             time_s = volume_l / self.flow_rates[int(cartridge_no)]
             relay = self.relays[int(cartridge_no) - 1]
@@ -124,7 +130,7 @@ class DrinkMachine:
         # Immediately stop all pumps
         for relay in self.relays:
             relay.off()
-        self.active_relays.clear()
+        self.active_relays = []
         self.isPouring = False
         self.drinkName = None
         if self.socketio:

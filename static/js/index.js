@@ -470,7 +470,7 @@ function showGreenTick(message = 'Done!') {
 }
 
 document.getElementById("nextBtn").addEventListener("click", () => {
-  if (pouring || mode === "create") {
+  if (pouring || mode === "create" || mode === "edit") {
     return
   }
   const keys = Object.keys(drinkConfigs);
@@ -479,7 +479,7 @@ document.getElementById("nextBtn").addEventListener("click", () => {
 });
 
 document.getElementById("prevBtn").addEventListener("click", () => {
-  if (pouring || mode === "create") {
+  if (pouring || mode === "create" || mode === "edit") {
     return
   }
   const keys = Object.keys(drinkConfigs);
@@ -546,10 +546,9 @@ document.addEventListener("keydown", (e) => {
 
 
 function handleSwipe() {
-  if (pouring || mode === "create") {
+  if (pouring || mode === "create" || mode === "edit") {
     return
   }
-
   const threshold = 30;
   const keys = Object.keys(drinkConfigs);
   if (touchEndX < touchStartX - threshold) {
