@@ -30,7 +30,7 @@ def editConfig():
 
          value = float(proportion)
 
-         if value <= 0:
+         if value < 0:
             return jsonify(error="Volume must be greater than 0"), 400
          
          old_config.set_proportion(str(cartridge), value)

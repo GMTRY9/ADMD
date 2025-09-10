@@ -115,6 +115,7 @@ class DrinkMachine:
         if self.isPouring:
             return False
 
+        self.active_relays = []
         self.isPouring = True
         self.drinkName = config.get_name()
 
