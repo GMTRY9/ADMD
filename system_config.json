@@ -6,15 +6,15 @@
     "next_button_gpio" : 14,
     "prev_button_gpio" : 23,
 
-    "pump1_gpio" : 21,
-    "pump1_flow_rate_l_s" : 0.04,
+    "pump1_gpio" : 12,
+    "pump1_flow_rate_l_s" : 0.0349,
 
-    "pump2_gpio" : 20,
-    "pump2_flow_rate_l_s" : 0.0351,
+    "pump2_gpio" : 16,
+    "pump2_flow_rate_l_s" : 0.034,
 
-    "pump3_gpio" : 16,
-    "pump3_flow_rate_l_s" : 0.034,
+    "pump3_gpio" : 20,
+    "pump3_flow_rate_l_s" : 0.0351,
 
-    "pump4_gpio" : 12,
-    "pump4_flow_rate_l_s" : 0.0349
+    "pump4_gpio" : 21,
+    "pump4_flow_rate_l_s" : 0.04
 }

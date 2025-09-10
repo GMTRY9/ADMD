@@ -4,6 +4,7 @@ let drinkConfigs = {};
 let originalDrinkConfigs = {};
 let originalProportions = {};
 let pouring = false;
+let currentPouringIndex = null;
 let pourAnimationFrame = null;
 var systemConfig;
 const DEFAULT_SIZE = 750;
@@ -11,7 +12,8 @@ const socket = io();
 
 // Listen for pouring state
 socket.on("pour_state", (data) => {
-  const { active, drink, progress } = data;
+  const { active, drink, drinkNo, progress } = data;
+  currentPouringIndex = drinkNo
   const pouringBanner = document.getElementById("pouring-banner");
 
   if (active) {
@@ -34,6 +36,7 @@ socket.on("pour_state", (data) => {
       fills.forEach(f => f.style.height = progress + "%");
     }
   } else {
+    currentPouringIndex = null;
     pouringBanner.style.display = "none";
     document.querySelectorAll(".startBtn").forEach(btn => {
       btn.disabled = false;
@@ -54,6 +57,17 @@ async function fetchConfigs() {
     drinkConfigs = data;
   } catch (e) {
     console.error("Fetch error:", e);
+  }
+}
+
+async function fetchPourState() {
+  try {
+    const res = await fetch("/api/getstate");
+    if (!res.ok) throw new Error("Network error");
+    return await res.json(); // { active, drink, drinkNo, progress }
+  } catch (err) {
+    console.error("Fetch pour state error:", err);
+    return null;
   }
 }
 
@@ -95,6 +109,19 @@ function generateNewId() {
   const nextId = keys.length ? Math.max(...keys) + 1 : 1;
   return nextId.toString();
 }
+
+async function syncPourState() {
+  const state = await fetchPourState();
+  if (!state || !state.active) return;
+
+  const { drinkNo, progress } = state;
+  if (drinkNo == currentIndex) {
+    // jump into pouring animation
+    const drink = Object.values(drinkConfigs)[currentIndex];
+    startPouring(drink, progress);
+  }
+}
+
 
 function renderSlides() {
   const keys = Object.keys(drinkConfigs);
@@ -362,7 +389,7 @@ function setMode(newMode) {
   updateSlidePosition();
 }
 
-function startPouring(drink) {
+function startPouring(drink, initialProgress = 0) {
   if (pouring) return;
 
   const slide = document.getElementsByClassName("carousel-slide")[currentIndex];
@@ -370,7 +397,16 @@ function startPouring(drink) {
 
   originalProportions = { ...drink.proportions };
   pouring = true;
-  const startTime = performance.now();
+
+  const totalDuration = Math.max(
+    ...Object.keys(originalProportions).map(cartNum => {
+      const ml = originalProportions[cartNum] || 0;
+      let flow_rate = parseFloat(systemConfig[`pump${cartNum}_flow_rate_l_s`]) * 1000;
+      return ml / flow_rate;
+    })
+  );
+
+  const startTime = performance.now() - initialProgress * totalDuration * 1000;
 
   function animatePouring(timestamp) {
     const elapsed = (timestamp - startTime) / 1000;
@@ -379,17 +415,15 @@ function startPouring(drink) {
     fills.forEach((fill, index) => {
       const cartNum = (index + 1).toString();
       const originalML = originalProportions[cartNum] || 0;
-      let flow_rate = parseFloat(systemConfig[`pump${cartNum}_flow_rate_l_s`]) * 1000
+      let flow_rate = parseFloat(systemConfig[`pump${cartNum}_flow_rate_l_s`]) * 1000;
       const remainingML = Math.max(originalML - flow_rate * elapsed, 0);
       const percent = (remainingML / DEFAULT_SIZE) * 100;
-      // nabl fix
-      fill.style.height = percent - 1 + "%";
+      fill.style.height = percent + "%";
       if (remainingML > 0) allEmpty = false;
     });
 
     if (allEmpty) {
       pouring = false;
-      // pour complete
       showGreenTick();
       resetBars(drink);
       return;
@@ -400,6 +434,7 @@ function startPouring(drink) {
 
   pourAnimationFrame = requestAnimationFrame(animatePouring);
 }
+
 
 
 
@@ -469,23 +504,22 @@ function showGreenTick(message = 'Done!') {
   }, { once: true });
 }
 
-document.getElementById("nextBtn").addEventListener("click", () => {
-  if (pouring || mode === "create" || mode === "edit") {
-    return
-  }
+document.getElementById("nextBtn").addEventListener("click", async () => {
+  if (pouring || mode === "create" || mode === "edit") return;
   const keys = Object.keys(drinkConfigs);
   currentIndex = (currentIndex + 1) % keys.length;
   updateSlidePosition();
+  await syncPourState();
 });
 
-document.getElementById("prevBtn").addEventListener("click", () => {
-  if (pouring || mode === "create" || mode === "edit") {
-    return
-  }
+document.getElementById("prevBtn").addEventListener("click", async () => {
+  if (pouring || mode === "create" || mode === "edit") return;
   const keys = Object.keys(drinkConfigs);
   currentIndex = (currentIndex - 1 + keys.length) % keys.length;
   updateSlidePosition();
+  await syncPourState();
 });
+
 
 document.getElementById("refreshOtpBtn").addEventListener("click", fetchOtp);
 
@@ -545,7 +579,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 
-function handleSwipe() {
+async function handleSwipe() {
   if (pouring || mode === "create" || mode === "edit") {
     return
   }
@@ -557,6 +591,7 @@ function handleSwipe() {
     currentIndex = (currentIndex - 1 + keys.length) % keys.length;
   }
   updateSlidePosition();
+  await syncPourState();
 }
 
 window.onload = initApp;

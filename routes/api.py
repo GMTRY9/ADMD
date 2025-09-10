@@ -126,6 +126,7 @@ def getState():
     return jsonify({
         "pouring": drinkmachine.isPouring,
         "drink": drinkmachine.drinkName,
+        "index": drinkmachine.drinkNo,
         "progress": drinkmachine.get_progress()
     }), 200
 
