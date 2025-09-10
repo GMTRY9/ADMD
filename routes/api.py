@@ -25,9 +25,6 @@ def editConfig():
       for cartridge in range(1, system_cartridges+1):     
          proportion = new_config["proportions"][str(cartridge)]
 
-         if not proportion:
-            continue
-
          value = float(proportion)
 
          if value < 0.0:
